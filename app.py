@@ -338,12 +338,32 @@ with col2:
                     communicate = edge_tts.Communicate(ai_reply, target_voice)
                     await communicate.save(audio_file)
                 
+                # 3. Generate the TTS Audio (CLOUD SAFE VERSION)
+                import tempfile
                 import asyncio
-                asyncio.run(generate_audio())
+                import base64
+                
+                target_voice = "en-US-ChristopherNeural" if st.session_state.language == "English" else "en-GB-SoniaNeural"
+                
+                # Create a secure temporary file that cloud servers allow
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_file:
+                    temp_audio_path = tmp_file.name
+                
+                async def generate_audio():
+                    communicate = edge_tts.Communicate(ai_reply, target_voice)
+                    await communicate.save(temp_audio_path)
+                
+                # Safely hook into the cloud server's event loop
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                
+                loop.run_until_complete(generate_audio())
                 
                 # 4. Embed Both Audio Tracks using custom HTML/JS
-                import base64
-                with open(audio_file, "rb") as f:
+                with open(temp_audio_path, "rb") as f:
                     audio_b64 = base64.b64encode(f.read()).decode()
                 
                 st.success(f"✅ AUDIO SYNTHESIS COMPLETE. MOOD LOCKED: [{mood.upper()}]")
