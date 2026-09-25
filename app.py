@@ -1293,528 +1293,60 @@ def clear_workspace():
 
 
 # ============================================================
-# ENTERPRISE BLUE + WHITE UI / UX
+# ============================================================
+# ENTERPRISE BLUE + GREEN UI / UX v7
 # ============================================================
 
-st.markdown(
-    """
+st.markdown("""
 <style>
 :root{
-    --blue-950:#082f63;
-    --blue-900:#0b3b7a;
-    --blue-800:#0f4fa8;
-    --blue-700:#155fc2;
-    --blue-600:#2563eb;
-    --blue-500:#3b82f6;
-    --blue-200:#bfdbfe;
-    --blue-100:#dbeafe;
-    --blue-50:#eff6ff;
-    --white:#ffffff;
-}
-
-.stApp{
-    background:var(--white);
-    color:var(--blue-950);
-}
-
-.block-container{
-    max-width:1380px;
-    padding:1.2rem 2.2rem 4rem;
-}
-
-h1,h2,h3,h4,h5,h6,p,label{
-    color:var(--blue-950)!important;
-}
-
-[data-testid="stHeader"]{
-    background:var(--white)!important;
-}
-
-[data-testid="stSidebar"]{
-    background:var(--white)!important;
-    border-right:1px solid var(--blue-100);
-}
-
-[data-testid="stSidebar"] .block-container{
-    padding:1.1rem 1rem 2rem;
-}
-
-/* ---------- Brand ---------- */
-
-.ss-brand{
-    display:flex;
-    align-items:center;
-    gap:11px;
-    padding:4px 3px 18px;
-}
-
-.ss-logo{
-    width:38px;
-    height:38px;
-    border-radius:11px;
-    background:var(--blue-600);
-    color:var(--white);
-    display:grid;
-    place-items:center;
-    font-weight:900;
-    font-size:18px;
-}
-
-.ss-brand-name{
-    color:var(--blue-950);
-    font-weight:850;
-    font-size:1.02rem;
-    letter-spacing:-.02em;
-}
-
-.ss-brand-sub{
-    color:var(--blue-700);
-    font-size:.70rem;
-    margin-top:1px;
-}
-
-/* ---------- Sidebar navigation ---------- */
-
-.nav-label{
-    color:var(--blue-700);
-    font-size:.68rem;
-    font-weight:850;
-    text-transform:uppercase;
-    letter-spacing:.09em;
-    margin:13px 0 7px;
-}
-
-.sidebar-card{
-    border:1px solid var(--blue-100);
-    border-radius:13px;
-    padding:13px;
-    background:var(--white);
-}
-
-.status-line{
-    display:flex;
-    align-items:center;
-    gap:7px;
-    color:var(--blue-800);
-    font-size:.78rem;
-    font-weight:700;
-}
-
-.status-dot{
-    width:8px;
-    height:8px;
-    border-radius:50%;
-    background:var(--blue-600);
-}
-
-/* ---------- Top application bar ---------- */
-
-.appbar{
-    height:58px;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    border-bottom:1px solid var(--blue-100);
-    margin-bottom:25px;
-}
-
-.appbar-title{
-    color:var(--blue-950);
-    font-size:.95rem;
-    font-weight:800;
-}
-
-.appbar-meta{
-    color:var(--blue-700);
-    font-size:.76rem;
-}
-
-/* ---------- Hero ---------- */
-
-.hero{
-    position:relative;
-    overflow:hidden;
-    border:1px solid var(--blue-100);
-    border-radius:22px;
-    padding:42px 44px;
-    background:linear-gradient(135deg,var(--white) 0%,var(--blue-50) 100%);
-    margin-bottom:20px;
-}
-
-.hero:after{
-    content:"";
-    position:absolute;
-    width:220px;
-    height:220px;
-    right:-70px;
-    top:-80px;
-    border-radius:50%;
-    border:30px solid var(--blue-100);
-    opacity:.55;
-}
-
-.hero-eyebrow{
-    color:var(--blue-700);
-    font-size:.70rem;
-    font-weight:900;
-    letter-spacing:.12em;
-    text-transform:uppercase;
-}
-
-.hero-title{
-    color:var(--blue-950);
-    font-size:2.8rem;
-    line-height:1.04;
-    font-weight:900;
-    letter-spacing:-.055em;
-    max-width:760px;
-    margin-top:12px;
-}
-
-.hero-copy{
-    color:var(--blue-800);
-    max-width:720px;
-    line-height:1.65;
-    font-size:.98rem;
-    margin-top:13px;
-}
-
-.hero-actions{
-    margin-top:24px;
-}
-
-/* ---------- KPI row ---------- */
-
-.kpi{
-    border:1px solid var(--blue-100);
-    border-radius:15px;
-    background:var(--white);
-    padding:17px;
-    min-height:92px;
-}
-
-.kpi-value{
-    color:var(--blue-950);
-    font-size:1.35rem;
-    font-weight:900;
-}
-
-.kpi-label{
-    color:var(--blue-700);
-    font-size:.72rem;
-    margin-top:3px;
-}
-
-/* ---------- Section headers ---------- */
-
-.section{
-    margin-top:30px;
-    margin-bottom:13px;
-}
-
-.section-title{
-    color:var(--blue-950);
-    font-size:1.22rem;
-    font-weight:850;
-    letter-spacing:-.025em;
-}
-
-.section-subtitle{
-    color:var(--blue-700);
-    font-size:.78rem;
-    margin-top:3px;
-}
-
-/* ---------- Library ---------- */
-
-.story-card{
-    border:1px solid var(--blue-100);
-    border-radius:17px;
-    background:var(--white);
-    padding:20px;
-    min-height:178px;
-    transition:.15s ease;
-}
-
-.story-card:hover{
-    border-color:var(--blue-500);
-    box-shadow:0 8px 28px rgba(37,99,235,.10);
-}
-
-.story-badge{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    width:38px;
-    height:38px;
-    border-radius:10px;
-    background:var(--blue-600);
-    color:var(--white);
-    font-size:.80rem;
-    font-weight:900;
-    margin-bottom:14px;
-}
-
-.story-title{
-    color:var(--blue-950);
-    font-size:1rem;
-    font-weight:850;
-}
-
-.story-description{
-    color:var(--blue-700);
-    font-size:.78rem;
-    line-height:1.55;
-    margin-top:6px;
-    min-height:50px;
-}
-
-/* ---------- Create workspace ---------- */
-
-.create-shell{
-    border:1px solid var(--blue-100);
-    border-radius:20px;
-    background:var(--white);
-    padding:26px;
-}
-
-.create-label{
-    color:var(--blue-950);
-    font-size:1rem;
-    font-weight:850;
-    margin-bottom:6px;
-}
-
-.create-help{
-    color:var(--blue-700);
-    font-size:.78rem;
-    line-height:1.5;
-    margin-bottom:16px;
-}
-
-.pipeline{
-    display:grid;
-    grid-template-columns:repeat(6,1fr);
-    gap:8px;
-    margin:0 0 22px;
-}
-
-.pipeline-item{
-    border:1px solid var(--blue-100);
-    border-radius:10px;
-    padding:10px;
-    background:var(--blue-50);
-    text-align:center;
-}
-
-.pipeline-num{
-    color:var(--blue-600);
-    font-size:.67rem;
-    font-weight:900;
-}
-
-.pipeline-name{
-    color:var(--blue-900);
-    font-size:.69rem;
-    font-weight:750;
-    margin-top:3px;
-}
-
-/* ---------- Reader ---------- */
-
-.reader-grid{
-    display:grid;
-    grid-template-columns:minmax(0,1fr) 280px;
-    gap:20px;
-}
-
-.reader-panel{
-    border:1px solid var(--blue-100);
-    border-radius:20px;
-    background:var(--white);
-    padding:32px;
-}
-
-.reader-title{
-    color:var(--blue-950);
-    font-size:2rem;
-    font-weight:900;
-    line-height:1.1;
-}
-
-.reader-meta{
-    color:var(--blue-700);
-    font-size:.75rem;
-    margin-top:7px;
-}
-
-.reader-story{
-    color:var(--blue-900);
-    font-size:1rem;
-    line-height:1.95;
-    margin-top:23px;
-    white-space:pre-line;
-}
-
-.narrator-panel{
-    border:1px solid var(--blue-100);
-    border-radius:20px;
-    background:var(--blue-50);
-    padding:20px;
-    text-align:center;
-}
-
-.narrator-avatar{
-    width:72px;
-    height:72px;
-    margin:0 auto 12px;
-    border-radius:50%;
-    background:var(--blue-600);
-    color:var(--white);
-    display:grid;
-    place-items:center;
-    font-size:27px;
-    font-weight:900;
-}
-
-.narrator-name{
-    color:var(--blue-950);
-    font-weight:850;
-}
-
-.narrator-role{
-    color:var(--blue-700);
-    font-size:.73rem;
-    margin-top:3px;
-}
-
-/* ---------- Scenes ---------- */
-
-.scene-selector{
-    border:1px solid var(--blue-100);
-    border-radius:17px;
-    padding:18px;
-    background:var(--white);
-}
-
-.scene-label{
-    color:var(--blue-600);
-    font-size:.68rem;
-    font-weight:900;
-    letter-spacing:.08em;
-    text-transform:uppercase;
-}
-
-.scene-title{
-    color:var(--blue-950);
-    font-size:1.18rem;
-    font-weight:850;
-    margin-top:4px;
-}
-
-.scene-copy{
-    color:var(--blue-700);
-    font-size:.78rem;
-    line-height:1.55;
-    margin-top:7px;
-}
-
-/* ---------- Character cards ---------- */
-
-.character-card{
-    border:1px solid var(--blue-100);
-    border-radius:15px;
-    background:var(--white);
-    padding:17px;
-}
-
-.character-name{
-    color:var(--blue-900);
-    font-weight:850;
-}
-
-.character-description{
-    color:var(--blue-700);
-    font-size:.76rem;
-    line-height:1.5;
-    margin-top:5px;
-}
-
-/* ---------- Buttons / controls ---------- */
-
-.stButton > button,
-.stFormSubmitButton > button{
-    border-radius:10px!important;
-    min-height:42px;
-    border:1px solid var(--blue-200)!important;
-    background:var(--white)!important;
-    color:var(--blue-800)!important;
-    font-weight:750!important;
-    box-shadow:none!important;
-}
-
-.stButton > button:hover,
-.stFormSubmitButton > button:hover{
-    border-color:var(--blue-600)!important;
-    background:var(--blue-50)!important;
-    color:var(--blue-900)!important;
-}
-
-.stButton > button[kind="primary"],
-.stFormSubmitButton > button[kind="primary"]{
-    background:var(--blue-600)!important;
-    border-color:var(--blue-600)!important;
-    color:var(--white)!important;
-}
-
-.stButton > button[kind="primary"]:hover,
-.stFormSubmitButton > button[kind="primary"]:hover{
-    background:var(--blue-700)!important;
-    border-color:var(--blue-700)!important;
-    color:var(--white)!important;
-}
-
-div[data-baseweb="input"] > div,
-div[data-baseweb="textarea"] > div,
-div[data-baseweb="select"] > div{
-    background:var(--white)!important;
-    border-color:var(--blue-100)!important;
-    border-radius:10px!important;
-}
-
-div[data-baseweb="input"]:focus-within > div,
-div[data-baseweb="textarea"]:focus-within > div,
-div[data-baseweb="select"]:focus-within > div{
-    border-color:var(--blue-500)!important;
-    box-shadow:0 0 0 2px var(--blue-100)!important;
-}
-
-textarea,
-input{
-    color:var(--blue-950)!important;
-}
-
-audio{
-    width:100%;
-}
-
-hr{
-    border-color:var(--blue-100);
-}
-
-@media (max-width:900px){
-    .block-container{padding:1rem 1rem 3rem;}
-    .hero{padding:28px 24px;}
-    .hero-title{font-size:2rem;}
-    .pipeline{grid-template-columns:repeat(3,1fr);}
-    .reader-grid{display:block;}
-}
+ --navy:#063b33;--blue:#1464d2;--blue-2:#2f7de1;--blue-50:#eef6ff;--blue-100:#d9eaff;--blue-200:#b9d7fb;
+ --green:#16a36a;--green-50:#edfbf4;--green-100:#d4f5e5;--border:#d7e6f4;--text:#12324a;--muted:#557086;
+}
+.stApp{background:linear-gradient(180deg,#f7fbff 0%,#fff 42%,#f5fbf8 100%);color:var(--text)}
+.block-container{max-width:1440px;padding:1rem 2rem 4rem}
+[data-testid="stHeader"]{background:rgba(255,255,255,.94)!important}
+[data-testid="stSidebar"]{background:#fff!important;border-right:1px solid var(--border)}
+[data-testid="stSidebar"] .block-container{padding:1rem .95rem 2rem}
+h1,h2,h3,h4,h5,h6,p,label{color:var(--text)!important}
+.ss-brand{display:flex;align-items:center;gap:11px;padding:5px 4px 20px}
+.ss-logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(145deg,var(--blue),var(--green));color:#fff;display:grid;place-items:center;font-weight:900;font-size:18px;box-shadow:0 7px 18px rgba(20,100,210,.18)}
+.ss-brand-name{font-weight:900;font-size:1.05rem;color:var(--navy)!important;letter-spacing:-.02em}
+.ss-brand-sub{color:var(--green)!important;font-size:.67rem;font-weight:800;letter-spacing:.08em;margin-top:1px}
+.nav-label{color:var(--muted)!important;font-size:.67rem;font-weight:900;text-transform:uppercase;letter-spacing:.1em;margin:14px 0 7px}
+.sidebar-card{border:1px solid var(--border);border-radius:14px;padding:13px;background:linear-gradient(145deg,#fff,#f8fcff);box-shadow:0 4px 16px rgba(18,50,74,.04)}
+.status-line{display:flex;align-items:center;gap:7px;color:var(--navy)!important;font-size:.78rem;font-weight:800}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px var(--green-100)}
+div[data-testid="stSidebar"] div[role="radiogroup"]{gap:5px!important}
+div[data-testid="stSidebar"] div[role="radiogroup"] label{border:1px solid transparent!important;border-radius:10px!important;padding:8px 10px!important;background:#fff!important;color:var(--muted)!important}
+div[data-testid="stSidebar"] div[role="radiogroup"] label:hover{background:var(--blue-50)!important;border-color:var(--blue-100)!important;color:var(--blue)!important}
+div[data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"]{background:linear-gradient(90deg,var(--blue-50),var(--green-50))!important;border-color:var(--blue-200)!important;color:var(--navy)!important;font-weight:900!important}
+.appbar{height:58px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);margin-bottom:22px;background:rgba(255,255,255,.55)}
+.appbar-title{font-size:.96rem;font-weight:900;color:var(--navy)!important}.appbar-meta{color:var(--muted)!important;font-size:.73rem;font-weight:700}.appbar-meta span{color:var(--green)!important}
+.hero{position:relative;overflow:hidden;border:1px solid var(--blue-200);border-radius:24px;padding:40px 44px;background:linear-gradient(115deg,#fff 0%,var(--blue-50) 62%,var(--green-50) 100%);box-shadow:0 10px 30px rgba(18,50,74,.07);margin-bottom:18px}
+.hero:before{content:"";position:absolute;right:-85px;top:-105px;width:290px;height:290px;border-radius:50%;background:linear-gradient(135deg,rgba(20,100,210,.12),rgba(22,163,106,.15))}.hero:after{content:"";position:absolute;right:55px;bottom:-95px;width:180px;height:180px;border-radius:50%;border:22px solid rgba(22,163,106,.12)}
+.hero-eyebrow{color:var(--green)!important;font-size:.68rem;font-weight:900;letter-spacing:.14em;text-transform:uppercase;position:relative;z-index:1}.hero-title{color:var(--navy)!important;font-size:2.85rem;line-height:1.04;font-weight:950;letter-spacing:-.06em;max-width:800px;margin-top:10px;position:relative;z-index:1}.hero-copy{color:var(--muted)!important;max-width:740px;line-height:1.65;font-size:.96rem;margin-top:13px;position:relative;z-index:1}
+.kpi{border:1px solid var(--border);border-radius:15px;background:#fff;padding:17px;min-height:94px;box-shadow:0 5px 18px rgba(18,50,74,.04)}.kpi-value{color:var(--navy)!important;font-size:1.4rem;font-weight:950}.kpi-label{color:var(--muted)!important;font-size:.71rem;margin-top:3px;font-weight:700}.kpi-green{border-top:3px solid var(--green)}.kpi-blue{border-top:3px solid var(--blue)}
+.section{margin-top:30px;margin-bottom:13px}.section-title{color:var(--navy)!important;font-size:1.23rem;font-weight:900;letter-spacing:-.025em}.section-subtitle{color:var(--muted)!important;font-size:.78rem;margin-top:3px}
+.card,.story-card,.create-shell,.reader-panel,.scene-selector,.character-card{border:1px solid var(--border);border-radius:18px;background:rgba(255,255,255,.96);box-shadow:0 7px 24px rgba(18,50,74,.045)}
+.story-card{padding:20px;min-height:180px;transition:.16s ease}.story-card:hover{transform:translateY(-2px);border-color:var(--blue-2);box-shadow:0 12px 32px rgba(20,100,210,.10)}
+.story-badge{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:11px;background:linear-gradient(145deg,var(--blue),var(--green));color:#fff;font-size:.8rem;font-weight:950;margin-bottom:14px}.story-title{color:var(--navy)!important;font-size:1rem;font-weight:900}.story-description{color:var(--muted)!important;font-size:.77rem;line-height:1.55;margin-top:6px;min-height:50px}.create-shell{padding:28px;background:linear-gradient(180deg,#fff,#fbfdff)}.create-label{color:var(--navy)!important;font-size:1rem;font-weight:900;margin-bottom:6px}.create-help{color:var(--muted)!important;font-size:.78rem;line-height:1.5;margin-bottom:16px}
+.pipeline{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:0 0 22px}.pipeline-item{border:1px solid var(--border);border-radius:11px;padding:11px;background:linear-gradient(145deg,var(--blue-50),var(--green-50));text-align:center}.pipeline-num{color:var(--blue)!important;font-size:.67rem;font-weight:950}.pipeline-name{color:var(--navy)!important;font-size:.69rem;font-weight:800;margin-top:3px}
+.reader-grid{display:grid;grid-template-columns:minmax(0,1fr) 285px;gap:20px}.reader-panel{padding:32px}.reader-title{color:var(--navy)!important;font-size:2rem;font-weight:950;line-height:1.1}.reader-meta{color:var(--muted)!important;font-size:.75rem;margin-top:7px}.reader-story{color:var(--text)!important;font-size:1rem;line-height:1.95;margin-top:23px;white-space:pre-line}.narrator-panel{border:1px solid var(--green-100);border-radius:20px;background:linear-gradient(145deg,var(--green-50),var(--blue-50));padding:20px;text-align:center}.narrator-avatar{width:72px;height:72px;margin:0 auto 12px;border-radius:50%;background:linear-gradient(145deg,var(--blue),var(--green));color:#fff;display:grid;place-items:center;font-size:27px;font-weight:900;box-shadow:0 8px 22px rgba(22,163,106,.18)}.narrator-name{color:var(--navy)!important;font-weight:900}.narrator-role{color:var(--muted)!important;font-size:.73rem;margin-top:3px}.scene-selector{padding:18px}.scene-label{color:var(--green)!important;font-size:.68rem;font-weight:950;letter-spacing:.08em;text-transform:uppercase}.scene-title{color:var(--navy)!important;font-size:1.18rem;font-weight:900;margin-top:4px}.scene-copy{color:var(--muted)!important;font-size:.78rem;line-height:1.55;margin-top:7px}.character-card{padding:17px}.character-name{color:var(--navy)!important;font-weight:900}.character-description{color:var(--muted)!important;font-size:.76rem;line-height:1.5;margin-top:5px}
+/* Dropdowns: target both the control and the opened menu so no black BaseWeb surface leaks through. */
+div[data-baseweb="select"] > div,div[data-baseweb="input"] > div,div[data-baseweb="textarea"] > div,div[data-baseweb="slider"] > div,div[data-baseweb="popover"] > div{background:#fff!important;color:var(--text)!important;border-color:var(--border)!important}div[data-baseweb="select"] > div{min-height:42px;border-radius:11px!important;box-shadow:none!important}div[data-baseweb="select"] span,div[data-baseweb="select"] input,div[data-baseweb="input"] input,textarea{color:var(--text)!important;-webkit-text-fill-color:var(--text)!important}div[data-baseweb="select"] svg{fill:var(--blue)!important}div[data-baseweb="select"]:focus-within > div,div[data-baseweb="input"]:focus-within > div,div[data-baseweb="textarea"]:focus-within > div{border-color:var(--blue-2)!important;box-shadow:0 0 0 3px rgba(20,100,210,.10)!important}
+div[data-baseweb="popover"]{background:#fff!important}div[data-baseweb="menu"]{background:#fff!important;border:1px solid var(--blue-100)!important;border-radius:12px!important;box-shadow:0 14px 35px rgba(18,50,74,.13)!important;overflow:hidden!important}ul[role="listbox"]{background:#fff!important;padding:5px!important}li[role="option"]{background:#fff!important;color:var(--text)!important;border-radius:8px!important;margin:2px 0!important}li[role="option"]:hover{background:var(--blue-50)!important;color:var(--blue)!important}li[role="option"][aria-selected="true"]{background:linear-gradient(90deg,var(--blue-50),var(--green-50))!important;color:var(--navy)!important;font-weight:850!important}
+div[data-testid="stToggle"] label{color:var(--text)!important}div[data-testid="stToggle"] div[role="switch"]{background:#b9c9d5!important}div[data-testid="stToggle"] div[role="switch"][aria-checked="true"]{background:var(--green)!important}
+.stButton > button,.stFormSubmitButton > button{border-radius:10px!important;min-height:42px;border:1px solid var(--blue-200)!important;background:#fff!important;color:var(--blue)!important;font-weight:800!important;box-shadow:none!important;transition:.15s ease}.stButton > button:hover,.stFormSubmitButton > button:hover{border-color:var(--green)!important;background:var(--green-50)!important;color:var(--navy)!important;transform:translateY(-1px)}.stButton > button[kind="primary"],.stFormSubmitButton > button[kind="primary"]{background:linear-gradient(135deg,var(--blue),var(--green))!important;border-color:transparent!important;color:#fff!important;box-shadow:0 8px 18px rgba(20,100,210,.16)!important}.stButton > button[kind="primary"]:hover,.stFormSubmitButton > button[kind="primary"]:hover{filter:brightness(.97);color:#fff!important}hr{border-color:var(--border)}a{color:var(--blue)!important}
+.library-toolbar{padding:14px 16px;border:1px solid var(--border);border-radius:15px;background:#fff;margin-bottom:15px}.filter-chip{display:inline-block;padding:5px 9px;border-radius:999px;background:var(--green-50);border:1px solid var(--green-100);color:var(--green)!important;font-size:.67rem;font-weight:850;margin-right:5px}.empty-state{padding:42px;text-align:center;border:1px dashed var(--blue-200);border-radius:18px;background:linear-gradient(145deg,var(--blue-50),var(--green-50))}
+@media (max-width:900px){.block-container{padding:1rem 1rem 3rem}.hero{padding:28px 24px}.hero-title{font-size:2rem}.pipeline{grid-template-columns:repeat(3,1fr)}.reader-grid{display:block}.reader-panel{margin-bottom:16px}}
 </style>
-""",
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
 
 
+# ============================================================
+# SIDEBAR
+# ============================================================
 # ============================================================
 # SIDEBAR
 # ============================================================
@@ -1923,7 +1455,7 @@ st.markdown(
     """
     <div class="appbar">
         <div class="appbar-title">Story Studio</div>
-        <div class="appbar-meta">Create · Illustrate · Narrate</div>
+        <div class="appbar-meta"><span>●</span> Create · Illustrate · Narrate · Enterprise workflow</div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -1999,79 +1531,54 @@ for col, (value, label) in zip(
 # ============================================================
 
 if st.session_state.view == "Library":
-
-    st.markdown(
-        """
-        <div class="section">
-            <div class="section-title">Story library</div>
-            <div class="section-subtitle">
-                Start with a ready-made story or open one you created.
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.markdown("""
+    <div class="section">
+      <div class="section-title">Story workspace</div>
+      <div class="section-subtitle">Find, resume and manage every story created in this session.</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     stories = list(st.session_state.stories.values())
-    cols = st.columns(3)
+    tb1, tb2, tb3 = st.columns([2.2, 1, 1])
+    with tb1:
+        library_query = st.text_input("Search stories", key="library_query", placeholder="Search by title, description or idea…", label_visibility="collapsed").strip().lower()
+    with tb2:
+        library_filter = st.selectbox("Filter", ["All stories", "Illustrated", "Narrated"], key="library_filter", label_visibility="collapsed")
+    with tb3:
+        library_sort = st.selectbox("Sort", ["Newest", "Title A–Z", "Quality"], key="library_sort", label_visibility="collapsed")
 
-    for idx, item in enumerate(stories):
-        with cols[idx % 3]:
-            st.markdown(
-                f"""
-                <div class="story-card">
-                    <div class="story-badge">S</div>
-                    <div class="story-title">{safe_html(item.get("title","Untitled"))}</div>
-                    <div class="story-description">
-                        {safe_html(item.get("description",""))}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+    filtered=[]
+    for item in stories:
+        haystack=" ".join([str(item.get("title","")),str(item.get("description","")),str(item.get("prompt",""))]).lower()
+        if library_query and library_query not in haystack: continue
+        if library_filter == "Illustrated" and not item.get("scenes"): continue
+        if library_filter == "Narrated" and not item.get("narrator"): continue
+        filtered.append(item)
+    if library_sort == "Title A–Z": filtered.sort(key=lambda x:str(x.get("title","" )).lower())
+    elif library_sort == "Quality": filtered.sort(key=lambda x:int(x.get("quality_score",0) or 0), reverse=True)
+    else: filtered.sort(key=lambda x:str(x.get("created_at","")), reverse=True)
 
-            if st.button(
-                "Open story",
-                key=f"library_open_{item['id']}",
-                use_container_width=True,
-            ):
-                if open_story(item["id"]):
-                    st.rerun()
+    st.markdown(f'<div class="library-toolbar"><span class="filter-chip">{len(filtered)} stories</span><span class="filter-chip">{safe_html(library_filter)}</span><span class="filter-chip">Enterprise library</span></div>', unsafe_allow_html=True)
+    if not filtered:
+        st.markdown('<div class="empty-state"><div style="font-size:1.1rem;font-weight:900;color:#063b33;">No matching stories</div><div style="margin-top:7px;color:#557086;font-size:.8rem;">Try another search or create a new story.</div></div>', unsafe_allow_html=True)
+    else:
+        cols=st.columns(3)
+        for idx,item in enumerate(filtered):
+            with cols[idx%3]:
+                quality=int(item.get("quality_score",0) or 0)
+                st.markdown(f'''<div class="story-card"><div class="story-badge">S</div><div class="story-title">{safe_html(item.get("title","Untitled"))}</div><div class="story-description">{safe_html(item.get("description",""))}</div><div style="margin-top:12px;font-size:.68rem;color:#557086;font-weight:750;">{safe_html(item.get("language","English"))} · {safe_html(item.get("style","Illustrated"))} · Quality {quality}%</div></div>''', unsafe_allow_html=True)
+                if st.button("Open story",key=f"library_open_{item['id']}",use_container_width=True):
+                    if open_story(item["id"]): st.rerun()
 
-    st.markdown(
-        """
-        <div class="section">
-            <div class="section-title">How the studio works</div>
-            <div class="section-subtitle">
-                One workspace from idea to finished narrated story.
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    h1, h2, h3 = st.columns(3)
-
-    for col, title, body in [
-        (h1, "01 · Build", "Define the story idea, characters, setting and emotional direction."),
-        (h2, "02 · Produce", "Generate the narrative, continuity edit and visual scene plan."),
-        (h3, "03 · Experience", "Read, illustrate and narrate the finished story scene by scene."),
-    ]:
+    st.markdown('<div class="section"><div class="section-title">Production workflow</div><div class="section-subtitle">A controlled pipeline from idea to reader-ready experience.</div></div>', unsafe_allow_html=True)
+    h1,h2,h3=st.columns(3)
+    for col,title,body in [(h1,"01 · Understand","Normalize the idea into a story brief, characters, setting and emotional direction."),(h2,"02 · Produce","Generate, edit and validate the narrative before creating visual scene plans."),(h3,"03 · Deliver","Read, illustrate and narrate scene-by-scene with consistent character direction.")]:
         with col:
-            st.markdown(
-                f"""
-                <div class="card">
-                    <div style="font-weight:850;color:#0f4fa8;">{safe_html(title)}</div>
-                    <div style="margin-top:6px;color:#155fc2;font-size:.76rem;line-height:1.55;">
-                        {safe_html(body)}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            st.markdown(f'<div class="card" style="padding:18px;"><div style="font-weight:900;color:#063b33;">{safe_html(title)}</div><div style="margin-top:6px;color:#557086;font-size:.76rem;line-height:1.55;">{safe_html(body)}</div></div>', unsafe_allow_html=True)
 
 
 # ============================================================
+
 # CREATE VIEW
 # ============================================================
 
