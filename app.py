@@ -572,15 +572,364 @@ def load_story(story_id: str):
         st.session_state.pending_story = story
 
 
+
 # ============================================================
-# Sidebar
+# ENTERPRISE PRODUCT SHELL
+# UI/UX direction:
+# - calm blue/white SaaS visual language
+# - clear hierarchy and fewer competing actions
+# - library-first information architecture
+# - prominent primary CTA
+# - separate "read", "create", and "manage" workflows
+# - narrator treated as a product character, not a technical widget
 # ============================================================
+
+st.markdown(
+    """
+<style>
+:root {
+    --brand: #2563eb;
+    --brand-dark: #1d4ed8;
+    --brand-50: #eff6ff;
+    --ink: #0f172a;
+    --ink-2: #334155;
+    --muted: #64748b;
+    --line: #e2e8f0;
+    --page: #f8fafc;
+    --card: #ffffff;
+    --success: #15803d;
+    --warning: #b45309;
+}
+
+/* ---------- App shell ---------- */
+.stApp {
+    background: var(--page);
+    color: var(--ink);
+}
+
+.block-container {
+    max-width: 1280px;
+    padding: 1.5rem 2rem 5rem;
+}
+
+header[data-testid="stHeader"] {
+    background: rgba(248,250,252,.92);
+}
+
+/* ---------- Typography ---------- */
+h1, h2, h3, h4 {
+    color: var(--ink) !important;
+    letter-spacing: -0.025em !important;
+}
+
+p, label, .stCaption {
+    color: var(--ink-2);
+}
+
+/* ---------- Top navigation ---------- */
+.topbar {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:24px;
+    padding:12px 0 24px;
+}
+
+.brand {
+    display:flex;
+    align-items:center;
+    gap:11px;
+    font-weight:800;
+    color:#123b78;
+    font-size:1.05rem;
+}
+
+.brand-mark {
+    width:34px;
+    height:34px;
+    display:grid;
+    place-items:center;
+    border-radius:10px;
+    background:var(--brand);
+    color:white;
+    font-size:17px;
+    box-shadow:0 6px 18px rgba(37,99,235,.22);
+}
+
+.nav-note {
+    color:var(--muted);
+    font-size:.82rem;
+}
+
+/* ---------- Hero ---------- */
+.hero {
+    position:relative;
+    overflow:hidden;
+    background:
+        radial-gradient(circle at 90% 15%, rgba(37,99,235,.13), transparent 30%),
+        linear-gradient(135deg,#ffffff 0%,#f3f7ff 100%);
+    border:1px solid var(--line);
+    border-radius:22px;
+    padding:42px;
+    min-height:300px;
+    box-shadow:0 16px 45px rgba(15,23,42,.06);
+    margin-bottom:24px;
+}
+
+.hero-eyebrow {
+    display:inline-block;
+    color:var(--brand-dark);
+    background:var(--brand-50);
+    border:1px solid #dbeafe;
+    padding:6px 10px;
+    border-radius:999px;
+    font-size:.76rem;
+    font-weight:750;
+    margin-bottom:16px;
+}
+
+.hero-title {
+    max-width:720px;
+    color:#102d5c;
+    font-size:2.65rem;
+    line-height:1.08;
+    font-weight:850;
+    letter-spacing:-.045em;
+    margin:0;
+}
+
+.hero-copy {
+    max-width:650px;
+    color:var(--muted);
+    font-size:1.02rem;
+    line-height:1.65;
+    margin-top:14px;
+}
+
+.hero-meta {
+    display:flex;
+    gap:9px;
+    flex-wrap:wrap;
+    margin-top:22px;
+}
+
+.pill {
+    border:1px solid var(--line);
+    background:white;
+    color:#475569;
+    border-radius:999px;
+    padding:6px 10px;
+    font-size:.75rem;
+}
+
+/* ---------- Cards ---------- */
+.card {
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:20px;
+    box-shadow:0 7px 24px rgba(15,23,42,.045);
+}
+
+.card-title {
+    color:var(--ink);
+    font-weight:760;
+    font-size:1rem;
+}
+
+.card-subtitle {
+    color:var(--muted);
+    font-size:.84rem;
+    margin-top:4px;
+}
+
+.section-head {
+    display:flex;
+    justify-content:space-between;
+    align-items:end;
+    margin:30px 0 13px;
+}
+
+.section-title {
+    font-size:1.28rem;
+    font-weight:800;
+    color:var(--ink);
+}
+
+.section-note {
+    color:var(--muted);
+    font-size:.82rem;
+}
+
+/* ---------- Story cards ---------- */
+.story-tile {
+    background:white;
+    border:1px solid var(--line);
+    border-radius:15px;
+    padding:17px;
+    min-height:150px;
+    box-shadow:0 5px 20px rgba(15,23,42,.035);
+}
+
+.story-icon {
+    width:40px;
+    height:40px;
+    display:grid;
+    place-items:center;
+    border-radius:11px;
+    background:var(--brand-50);
+    margin-bottom:13px;
+    font-size:19px;
+}
+
+.story-title {
+    font-weight:780;
+    color:var(--ink);
+    margin-bottom:5px;
+}
+
+.story-description {
+    color:var(--muted);
+    font-size:.82rem;
+    line-height:1.5;
+}
+
+/* ---------- Reader ---------- */
+.reader {
+    background:white;
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:32px;
+    box-shadow:0 8px 28px rgba(15,23,42,.05);
+}
+
+.reader-title {
+    font-size:1.85rem;
+    font-weight:820;
+    color:#123b78;
+    margin-bottom:15px;
+}
+
+.reader-copy {
+    color:#334155;
+    line-height:1.9;
+    font-size:1.03rem;
+}
+
+/* ---------- Character ---------- */
+.character {
+    background:linear-gradient(180deg,#ffffff,#f6f9ff);
+    border:1px solid #dbe7f7;
+    border-radius:17px;
+    padding:21px;
+    text-align:center;
+}
+
+.avatar {
+    width:74px;
+    height:74px;
+    margin:0 auto 12px;
+    display:grid;
+    place-items:center;
+    border-radius:50%;
+    background:#eaf2ff;
+    font-size:34px;
+}
+
+.character-name {
+    font-weight:800;
+    color:#123b78;
+}
+
+.character-role {
+    color:var(--muted);
+    font-size:.8rem;
+    margin-top:3px;
+}
+
+/* ---------- Metrics ---------- */
+.metric {
+    background:white;
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:15px;
+}
+
+.metric-number {
+    font-size:1.35rem;
+    color:#123b78;
+    font-weight:820;
+}
+
+.metric-label {
+    font-size:.75rem;
+    color:var(--muted);
+    margin-top:2px;
+}
+
+/* ---------- Controls ---------- */
+div[data-baseweb="input"] > div,
+div[data-baseweb="textarea"] > div,
+div[data-baseweb="select"] > div {
+    background:#fff !important;
+    border-color:var(--line) !important;
+    border-radius:10px !important;
+}
+
+div[data-baseweb="input"]:focus-within > div,
+div[data-baseweb="textarea"]:focus-within > div,
+div[data-baseweb="select"]:focus-within > div {
+    border-color:var(--brand) !important;
+    box-shadow:0 0 0 2px rgba(37,99,235,.10) !important;
+}
+
+.stButton > button,
+.stFormSubmitButton > button {
+    min-height:42px;
+    border-radius:9px !important;
+    border:1px solid #cbd5e1 !important;
+    background:white !important;
+    color:#1e4f91 !important;
+    font-weight:680 !important;
+}
+
+.stButton > button:hover,
+.stFormSubmitButton > button:hover {
+    border-color:var(--brand) !important;
+    background:var(--brand-50) !important;
+}
+
+[data-testid="stSidebar"] {
+    background:#fff;
+    border-right:1px solid var(--line);
+}
+
+[data-testid="stSidebar"] .block-container {
+    padding:1.25rem;
+}
+
+audio {
+    width:100%;
+}
+
+hr {
+    border-color:var(--line);
+}
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
+# ---------- Sidebar: settings, not navigation clutter ----------
 with st.sidebar:
-    st.markdown("## Story Studio")
-    st.caption("AI storytelling workspace")
+    st.markdown(
+        '<div class="brand"><div class="brand-mark">S</div> Story Studio</div>',
+        unsafe_allow_html=True,
+    )
+    st.caption("Professional AI storytelling workspace")
 
     st.markdown("---")
-    st.markdown("### Story settings")
+    st.markdown("#### Creation settings")
 
     st.session_state.language = st.selectbox(
         "Language",
@@ -589,7 +938,7 @@ with st.sidebar:
     )
 
     st.session_state.art_style = st.selectbox(
-        "Visual style",
+        "Illustration style",
         list(ART_STYLES),
         index=list(ART_STYLES).index(st.session_state.art_style),
     )
@@ -601,20 +950,17 @@ with st.sidebar:
     )
 
     st.session_state.generate_images = st.toggle(
-        "Generate illustrations",
+        "Create illustrations",
         value=st.session_state.generate_images,
     )
-
-    st.markdown("---")
-    st.markdown("### Narrator")
 
     narrator = NARRATORS[st.session_state.narrator]
     st.markdown(
         f"""
-        <div class="character-card">
-            <div class="character-avatar">{narrator["avatar"]}</div>
+        <div class="character">
+            <div class="avatar">{narrator["avatar"]}</div>
             <div class="character-name">{st.session_state.narrator}</div>
-            <div class="character-status">{narrator["description"]}</div>
+            <div class="character-role">{narrator["description"]}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -625,221 +971,305 @@ with st.sidebar:
         st.session_state.history = []
         st.session_state.pending_story = None
         st.session_state.current_story_id = None
-        st.session_state.image_cache = {}
-        st.session_state.audio_cache = {}
         st.rerun()
 
     st.caption(
-        "AI service: "
-        + ("Connected" if GROQ_API_KEY else "API key missing")
+        "AI service: " +
+        ("Connected" if GROQ_API_KEY else "Setup required")
     )
 
+# ---------- Top bar ----------
+st.markdown(
+    """
+<div class="topbar">
+    <div class="brand">
+        <div class="brand-mark">S</div>
+        Story Studio
+    </div>
+    <div class="nav-note">Create · Read · Listen</div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
 
-# ============================================================
-# Header
-# ============================================================
+# ---------- Primary product hero ----------
 st.markdown(
     """
 <div class="hero">
-    <div class="hero-title">Story Studio</div>
-    <div class="hero-subtitle">
-        Create, illustrate and narrate stories in one professional workspace.
+    <div class="hero-eyebrow">AI STORYTELLING PLATFORM</div>
+    <div class="hero-title">Stories that feel alive.</div>
+    <div class="hero-copy">
+        Create original stories, build illustrated scenes and let a
+        professional AI narrator bring every chapter to life.
+    </div>
+    <div class="hero-meta">
+        <span class="pill">✦ AI story generation</span>
+        <span class="pill">◉ Illustrated scenes</span>
+        <span class="pill">▶ Character narration</span>
     </div>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-a, b, c = st.columns(3)
-with a:
-    st.markdown(
-        f'<div class="metric"><div class="metric-value">{len(st.session_state.stories)}</div>'
-        '<div class="metric-label">Stories available</div></div>',
-        unsafe_allow_html=True,
-    )
-with b:
-    st.markdown(
-        f'<div class="metric"><div class="metric-value">{len(st.session_state.image_cache)}</div>'
-        '<div class="metric-label">Cached illustrations</div></div>',
-        unsafe_allow_html=True,
-    )
-with c:
-    st.markdown(
-        f'<div class="metric"><div class="metric-value">{len(st.session_state.audio_cache)}</div>'
-        '<div class="metric-label">Cached narrations</div></div>',
-        unsafe_allow_html=True,
-    )
-
-
-# ============================================================
-# Existing stories / Story Library
-# ============================================================
-st.markdown("### Story library")
-
-story_items = list(st.session_state.stories.values())
-
-cols = st.columns(3)
-
-for idx, item in enumerate(story_items):
-    with cols[idx % 3]:
+# ---------- High-level workspace metrics ----------
+m1, m2, m3, m4 = st.columns(4)
+metrics = [
+    (len(st.session_state.stories), "Stories"),
+    (len(st.session_state.image_cache), "Illustrations cached"),
+    (len(st.session_state.audio_cache), "Narrations cached"),
+    ("Ready" if GROQ_API_KEY else "Setup", "Workspace"),
+]
+for col, (value, label) in zip((m1, m2, m3, m4), metrics):
+    with col:
         st.markdown(
-            f"""
-            <div class="product-card">
-                <strong>{item["title"]}</strong><br>
-                <span style="color:#64748b;font-size:.85rem;">
-                    {item.get("description", "")[:150]}
-                </span>
-            </div>
-            """,
+            f'<div class="metric"><div class="metric-number">{value}</div>'
+            f'<div class="metric-label">{label}</div></div>',
             unsafe_allow_html=True,
         )
 
-        if st.button(
-            "Open story",
-            key=f"open_story_{item['id']}",
-            use_container_width=True,
-        ):
-            load_story(item["id"])
-            st.rerun()
-
-
-# ============================================================
-# Active existing story
-# ============================================================
-active = st.session_state.pending_story
-
-if active and active.get("story"):
-    st.markdown("---")
-    st.markdown(f"### {active.get('title', 'Story')}")
-
-    left, right = st.columns([3, 1])
-
-    with left:
-        st.markdown(
-            f'<div class="story-card">{active["story"]}</div>',
-            unsafe_allow_html=True,
-        )
-
-    with right:
-        n = NARRATORS.get(
-            active.get("narrator", st.session_state.narrator),
-            NARRATORS["Story Guide"],
-        )
-        st.markdown(
-            f"""
-            <div class="character-card">
-                <div class="character-avatar">{n["avatar"]}</div>
-                <div class="character-name">{active.get("narrator", "Story Guide")}</div>
-                <div class="character-status">Your story narrator</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        if st.button(
-            "▶ Tell this story",
-            key=f"tell_existing_{active.get('id', 'active')}",
-            use_container_width=True,
-        ):
-            with st.spinner("Preparing narration..."):
-                audio = generate_audio(
-                    active["story"],
-                    active.get("narrator", st.session_state.narrator),
-                )
-
-            if audio:
-                st.audio(audio, format="audio/mp3")
-            else:
-                st.error("Narration could not be generated.")
-
-    scenes = active.get("scenes", [])
-
-    if scenes and st.session_state.generate_images:
-        st.markdown("#### Illustrations")
-
-        for scene_idx, scene in enumerate(scenes):
-            with st.container(border=True):
-                st.markdown(
-                    f'<div class="scene-header">SCENE {scene_idx + 1} · {scene.get("title", "Scene")}</div>',
-                    unsafe_allow_html=True,
-                )
-                st.caption(scene.get("visual_prompt", ""))
-
-                with st.spinner("Preparing illustration..."):
-                    image = fetch_image(
-                        scene.get("visual_prompt", ""),
-                        active.get("style", st.session_state.art_style),
-                    )
-
-                if image:
-                    st.image(image, use_container_width=True)
-                else:
-                    st.warning(
-                        "Illustration unavailable. The story remains available."
-                    )
-
-
-# ============================================================
-# New story creation
-# ============================================================
-st.markdown("---")
-st.markdown("### Create a new story")
-
-prompt = st.chat_input(
-    "Describe the story you want to create..."
+# ---------- Main workspace tabs ----------
+library_tab, create_tab, reader_tab = st.tabs(
+    ["Story Library", "Create Story", "Reader"]
 )
 
-if prompt:
-    prompt = clean_prompt(prompt)
+# ============================================================
+# LIBRARY
+# ============================================================
+with library_tab:
+    st.markdown(
+        '<div class="section-head"><div><div class="section-title">Your stories</div>'
+        '<div class="section-note">Open a story to read, illustrate or narrate it.</div></div></div>',
+        unsafe_allow_html=True,
+    )
 
-    if not prompt:
-        st.warning("Please enter a story request.")
-        st.stop()
+    stories = list(st.session_state.stories.values())
 
-    if not GROQ_API_KEY:
-        st.error("GROQ_API_KEY is not configured.")
-        st.stop()
+    if not stories:
+        st.info("Your story library is empty. Create your first story.")
+    else:
+        cols = st.columns(3)
 
-    with st.spinner("Creating story, characters and scenes..."):
-        try:
-            result = generate_story(
-                prompt,
-                st.session_state.language,
-                st.session_state.narrator,
-            )
+        for idx, item in enumerate(stories):
+            with cols[idx % 3]:
+                st.markdown(
+                    f"""
+                    <div class="story-tile">
+                        <div class="story-icon">📖</div>
+                        <div class="story-title">{item["title"]}</div>
+                        <div class="story-description">
+                            {item.get("description", "")[:150]}
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
-            story_id = save_story(
-                result["title"],
-                result,
-            )
-
-            # Store the original prompt too.
-            st.session_state.stories[story_id]["prompt"] = prompt
-            st.session_state.current_story_id = story_id
-            st.session_state.pending_story = st.session_state.stories[story_id]
-
-            st.session_state.history.append(
-                {"role": "user", "content": prompt}
-            )
-            st.session_state.history.append(
-                {"role": "assistant", "content": result["story"]}
-            )
-
-            if len(st.session_state.history) > MAX_HISTORY:
-                st.session_state.history = st.session_state.history[-MAX_HISTORY:]
-
-            st.rerun()
-
-        except Exception as exc:
-            st.session_state.last_error = safe_error(exc)
-            st.error(f"Story generation failed: {st.session_state.last_error}")
-
+                if st.button(
+                    "Open",
+                    key=f"library_open_{item['id']}",
+                    use_container_width=True,
+                ):
+                    load_story(item["id"])
+                    st.rerun()
 
 # ============================================================
-# Footer
+# CREATE
 # ============================================================
+with create_tab:
+    st.markdown(
+        '<div class="section-head"><div><div class="section-title">Create a story</div>'
+        '<div class="section-note">Describe the experience in your own words.</div></div></div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    prompt = st.text_area(
+        "Story idea",
+        placeholder=(
+            "Example: Tell a warm adventure about a little robot "
+            "who helps a lost child find their way home."
+        ),
+        height=130,
+        label_visibility="visible",
+    )
+
+    c1, c2 = st.columns([3, 1])
+    with c1:
+        st.caption(
+            f"{st.session_state.language} · "
+            f"{st.session_state.art_style} · "
+            f"{st.session_state.narrator}"
+        )
+    with c2:
+        generate_clicked = st.button(
+            "Create story",
+            type="primary",
+            use_container_width=True,
+        )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    if generate_clicked:
+        prompt = clean_prompt(prompt)
+
+        if not prompt:
+            st.warning("Describe the story you want to create.")
+        elif not GROQ_API_KEY:
+            st.error("GROQ_API_KEY is not configured.")
+        else:
+            with st.spinner("Creating story, characters and scenes..."):
+                try:
+                    result = generate_story(
+                        prompt,
+                        st.session_state.language,
+                        st.session_state.narrator,
+                    )
+
+                    story_id = save_story(result["title"], result)
+                    st.session_state.stories[story_id]["prompt"] = prompt
+                    st.session_state.current_story_id = story_id
+                    st.session_state.pending_story = st.session_state.stories[story_id]
+
+                    st.session_state.history.extend([
+                        {"role": "user", "content": prompt},
+                        {"role": "assistant", "content": result["story"]},
+                    ])
+
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"Story creation failed: {safe_error(exc)}")
+
+    st.markdown(
+        """
+        <div class="section-head">
+            <div>
+                <div class="section-title">How it works</div>
+                <div class="section-note">A simple workflow designed for non-technical users.</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    h1, h2, h3 = st.columns(3)
+    steps = [
+        ("01", "Describe", "Give the story idea, characters or lesson."),
+        ("02", "Create", "The story engine builds the narrative and scene plan."),
+        ("03", "Bring it alive", "Generate illustrations and let your narrator tell it."),
+    ]
+
+    for col, (num, title, body) in zip((h1, h2, h3), steps):
+        with col:
+            st.markdown(
+                f"""
+                <div class="card">
+                    <div style="color:#2563eb;font-weight:800;">{num}</div>
+                    <div class="card-title" style="margin-top:8px;">{title}</div>
+                    <div class="card-subtitle">{body}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+# ============================================================
+# READER
+# ============================================================
+with reader_tab:
+    active = st.session_state.pending_story
+
+    if not active:
+        st.info("Open a story from the Story Library to start reading.")
+    else:
+        left, right = st.columns([3.2, 1])
+
+        with left:
+            st.markdown(
+                f"""
+                <div class="reader">
+                    <div class="reader-title">{active["title"]}</div>
+                    <div class="reader-copy">{active["story"]}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        with right:
+            active_narrator = NARRATORS.get(
+                active.get("narrator", st.session_state.narrator),
+                NARRATORS["Story Guide"],
+            )
+
+            st.markdown(
+                f"""
+                <div class="character">
+                    <div class="avatar">{active_narrator["avatar"]}</div>
+                    <div class="character-name">
+                        {active.get("narrator", "Story Guide")}
+                    </div>
+                    <div class="character-role">
+                        Your AI story narrator
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            if st.button(
+                "▶ Tell this story",
+                key=f"tell_{active.get('id', 'active')}",
+                use_container_width=True,
+            ):
+                with st.spinner("Preparing narration..."):
+                    audio = generate_audio(
+                        active["story"],
+                        active.get("narrator", st.session_state.narrator),
+                    )
+
+                if audio:
+                    st.audio(audio, format="audio/mp3")
+                else:
+                    st.error("Narration could not be generated.")
+
+        scenes = active.get("scenes", [])
+
+        if scenes and st.session_state.generate_images:
+            st.markdown(
+                '<div class="section-head"><div><div class="section-title">Story scenes</div>'
+                '<div class="section-note">Illustrations generated from the story plan.</div></div></div>',
+                unsafe_allow_html=True,
+            )
+
+            for scene_idx, scene in enumerate(scenes):
+                with st.container(border=True):
+                    st.markdown(
+                        f'<div class="scene-header">SCENE {scene_idx + 1} · '
+                        f'{scene.get("title", "Scene")}</div>',
+                        unsafe_allow_html=True,
+                    )
+                    st.caption(scene.get("visual_prompt", ""))
+
+                    with st.spinner("Preparing illustration..."):
+                        image = fetch_image(
+                            scene.get("visual_prompt", ""),
+                            active.get("style", st.session_state.art_style),
+                        )
+
+                    if image:
+                        st.image(image, use_container_width=True)
+                    else:
+                        st.warning(
+                            "This illustration is temporarily unavailable. "
+                            "The story remains available."
+                        )
+
+# ============================================================
+# Active story summary on every non-reader view
+# ============================================================
+if st.session_state.pending_story and "Reader" not in st.session_state:
+    pass
+
 st.markdown("---")
 st.caption(
-    "Story Studio • Enterprise architecture • "
-    "Structured story generation • Persistent scene cache • Character narration"
+    "Story Studio · Professional AI storytelling workspace · "
+    "Structured generation · Visual scenes · Character narration"
 )
