@@ -1,11 +1,12 @@
 
 """
-Story Studio Enterprise v4
+Story Studio Enterprise v8
 ---------------------------
-A production-oriented Streamlit storytelling workspace.
+A production-oriented Streamlit storytelling workspace using Groq as the
+single AI engine.
 
 Key improvements over v3:
-- .env support for GROQ_API_KEY via python-dotenv.
+- Groq API key is configured directly in this source file.
 - Starter stories are real readable stories, not metadata-only cards.
 - Library/Open flow actually loads a story and switches to Reader.
 - Explicit application navigation instead of static tabs.
@@ -17,26 +18,19 @@ Key improvements over v3:
     5. Scene + character visual plan
 - Structured JSON outputs with schema validation.
 - Groq structured-output support with graceful fallback.
-- Optional open-source Ollama backend.
+- No Ollama dependency or local-model server required.
 - Deterministic caching for AI text, images and audio.
 - Character consistency instructions shared across scenes.
 - Scene-level narration instead of one giant opaque audio job.
 - Reader progress, scene selection and per-scene narration.
 - Safer HTML escaping for generated text.
 - No LLM-controlled CSS or Streamlit state.
-- Provider abstraction so the UI is not tied to one LLM vendor.
+- Single-provider architecture keeps deployment simple and predictable.
 
 Run:
     pip install -r requirements.txt
-    copy .env.example .env
-    # Put your real GROQ_API_KEY in .env
-    streamlit run story_studio_enterprise_v4.py
-
-Optional local open-source LLM:
-    Install Ollama and pull a model such as llama3.1:8b.
-    Set:
-        LLM_PROVIDER=auto
-        OLLAMA_MODEL=llama3.1:8b
+    # Paste your Groq key into GROQ_API_KEY below.
+    streamlit run story_studio_enterprise_blue_green_v8.py
 """
 
 import os
@@ -56,20 +50,9 @@ import edge_tts
 import streamlit as st
 
 try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except Exception:
-    pass
-
-try:
     from groq import Groq
 except Exception:
     Groq = None
-
-try:
-    from ollama import chat as ollama_chat
-except Exception:
-    ollama_chat = None
 
 
 # ============================================================
@@ -83,13 +66,15 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-APP_VERSION = "6.0.0"
+APP_VERSION = "8.0.0"
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
-GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b").strip()
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "auto").strip().lower()
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b").strip()
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").strip()
+# ============================================================
+# PUT YOUR GROQ API KEY HERE
+# ============================================================
+# Example: GROQ_API_KEY = "gsk_xxxxxxxxxxxxxxxxx"
+# Keep this private. Do NOT commit the real key to GitHub or publish it.
+GROQ_API_KEY = "PASTE_YOUR_GROQ_API_KEY_HERE".strip()
+GROQ_MODEL = "openai/gpt-oss-20b"
 
 MAX_PROMPT_LENGTH = 3000
 MAX_STORY_CHARS = 22000
@@ -560,15 +545,10 @@ def extract_json(raw: str) -> Dict[str, Any]:
 
 
 def provider_status() -> str:
-    if LLM_PROVIDER == "groq":
+    """Return the single configured AI engine used by this product."""
+    if GROQ_API_KEY and GROQ_API_KEY != "PASTE_YOUR_GROQ_API_KEY_HERE" and Groq is not None:
         return "Groq"
-    if LLM_PROVIDER == "ollama":
-        return "Ollama"
-    if GROQ_API_KEY:
-        return "Groq"
-    if ollama_chat:
-        return "Ollama"
-    return "Unavailable"
+    return "Not configured"
 
 
 def get_groq_client() -> Optional[Any]:
@@ -753,35 +733,6 @@ def call_groq_json_fallback(
     return extract_json(response.choices[0].message.content)
 
 
-def call_ollama_json(
-    *,
-    system: str,
-    user: str,
-    schema: Dict[str, Any],
-    temperature: float = 0.35,
-) -> Dict[str, Any]:
-    if ollama_chat is None:
-        raise RuntimeError(
-            "Ollama Python package is not installed. Install 'ollama' "
-            "or configure Groq in .env."
-        )
-
-    response = ollama_chat(
-        model=OLLAMA_MODEL,
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-        format=schema,
-        options={"temperature": temperature},
-    )
-
-    content = getattr(getattr(response, "message", None), "content", None)
-    if not content:
-        raise RuntimeError("Ollama returned an empty response.")
-    return extract_json(content)
-
-
 def llm_json(
     *,
     system: str,
@@ -791,79 +742,39 @@ def llm_json(
     temperature: float = 0.35,
     max_tokens: int = 5000,
 ) -> Dict[str, Any]:
-    """
-    Provider strategy:
-      groq   -> Groq only
-      ollama -> Ollama only
-      auto   -> Groq when key exists, otherwise Ollama
-    """
-    provider = LLM_PROVIDER
+    """Call Groq only, with structured-output compatibility fallback."""
+    if not GROQ_API_KEY or GROQ_API_KEY == "PASTE_YOUR_GROQ_API_KEY_HERE":
+        raise RuntimeError(
+            "Groq API key is not configured. Open this Python file and paste "
+            "your key into GROQ_API_KEY near the top of the file."
+        )
+    if Groq is None:
+        raise RuntimeError(
+            "The Groq Python package is missing. Run: pip install groq"
+        )
 
-    if provider == "groq":
+    try:
+        return call_groq_json(
+            system=system,
+            user=user,
+            schema_name=schema_name,
+            schema=schema,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+    except Exception as first_error:
         try:
-            return call_groq_json(
+            return call_groq_json_fallback(
                 system=system,
                 user=user,
-                schema_name=schema_name,
-                schema=schema,
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
-        except Exception as first_error:
-            # A controlled compatibility fallback for models where strict
-            # structured output is unavailable.
-            try:
-                return call_groq_json_fallback(
-                    system=system,
-                    user=user,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                )
-            except Exception:
-                raise first_error
-
-    if provider == "ollama":
-        return call_ollama_json(
-            system=system,
-            user=user,
-            schema=schema,
-            temperature=temperature,
-        )
-
-    # auto
-    if GROQ_API_KEY and Groq is not None:
-        try:
-            return call_groq_json(
-                system=system,
-                user=user,
-                schema_name=schema_name,
-                schema=schema,
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
-        except Exception:
-            try:
-                return call_groq_json_fallback(
-                    system=system,
-                    user=user,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                )
-            except Exception:
-                pass
-
-    if ollama_chat is not None:
-        return call_ollama_json(
-            system=system,
-            user=user,
-            schema=schema,
-            temperature=temperature,
-        )
-
-    raise RuntimeError(
-        "No AI provider is available. Add GROQ_API_KEY to .env "
-        "or install/configure Ollama."
-    )
+        except Exception as fallback_error:
+            raise RuntimeError(
+                f"Groq generation failed. Primary error: {safe_error(first_error)} | "
+                f"JSON fallback: {safe_error(fallback_error)}"
+            ) from fallback_error
 
 
 # ============================================================
@@ -1103,7 +1014,7 @@ def run_story_pipeline(
     if not clean:
         raise ValueError("Story idea cannot be empty.")
 
-    cache_key = stable_hash(clean, language, narrator, art_style, GROQ_MODEL, OLLAMA_MODEL)
+    cache_key = stable_hash(clean, language, narrator, art_style, GROQ_MODEL)
 
     if cache_key in st.session_state.text_cache:
         return st.session_state.text_cache[cache_key]
@@ -1950,7 +1861,7 @@ elif st.session_state.view == "Reader":
         with st.expander("Story architecture"):
             st.write({
                 "provider": provider_status(),
-                "model": GROQ_MODEL if provider_status() == "Groq" else OLLAMA_MODEL,
+                "model": GROQ_MODEL,
                 "pipeline": active.get("pipeline", []),
                 "created_at": active.get("created_at", ""),
                 "editor_notes": active.get("editor_notes", []),
