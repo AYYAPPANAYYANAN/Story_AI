@@ -1390,31 +1390,562 @@ def clear_workspace():
     st.session_state.last_error = None
 
 
+
+# ============================================================
+# ENTERPRISE BLUE + WHITE UI / UX
+# ============================================================
+
+st.markdown(
+    """
+<style>
+:root{
+    --blue-950:#082f63;
+    --blue-900:#0b3b7a;
+    --blue-800:#0f4fa8;
+    --blue-700:#155fc2;
+    --blue-600:#2563eb;
+    --blue-500:#3b82f6;
+    --blue-200:#bfdbfe;
+    --blue-100:#dbeafe;
+    --blue-50:#eff6ff;
+    --white:#ffffff;
+}
+
+.stApp{
+    background:var(--white);
+    color:var(--blue-950);
+}
+
+.block-container{
+    max-width:1380px;
+    padding:1.2rem 2.2rem 4rem;
+}
+
+h1,h2,h3,h4,h5,h6,p,label{
+    color:var(--blue-950)!important;
+}
+
+[data-testid="stHeader"]{
+    background:var(--white)!important;
+}
+
+[data-testid="stSidebar"]{
+    background:var(--white)!important;
+    border-right:1px solid var(--blue-100);
+}
+
+[data-testid="stSidebar"] .block-container{
+    padding:1.1rem 1rem 2rem;
+}
+
+/* ---------- Brand ---------- */
+
+.ss-brand{
+    display:flex;
+    align-items:center;
+    gap:11px;
+    padding:4px 3px 18px;
+}
+
+.ss-logo{
+    width:38px;
+    height:38px;
+    border-radius:11px;
+    background:var(--blue-600);
+    color:var(--white);
+    display:grid;
+    place-items:center;
+    font-weight:900;
+    font-size:18px;
+}
+
+.ss-brand-name{
+    color:var(--blue-950);
+    font-weight:850;
+    font-size:1.02rem;
+    letter-spacing:-.02em;
+}
+
+.ss-brand-sub{
+    color:var(--blue-700);
+    font-size:.70rem;
+    margin-top:1px;
+}
+
+/* ---------- Sidebar navigation ---------- */
+
+.nav-label{
+    color:var(--blue-700);
+    font-size:.68rem;
+    font-weight:850;
+    text-transform:uppercase;
+    letter-spacing:.09em;
+    margin:13px 0 7px;
+}
+
+.sidebar-card{
+    border:1px solid var(--blue-100);
+    border-radius:13px;
+    padding:13px;
+    background:var(--white);
+}
+
+.status-line{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    color:var(--blue-800);
+    font-size:.78rem;
+    font-weight:700;
+}
+
+.status-dot{
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:var(--blue-600);
+}
+
+/* ---------- Top application bar ---------- */
+
+.appbar{
+    height:58px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom:1px solid var(--blue-100);
+    margin-bottom:25px;
+}
+
+.appbar-title{
+    color:var(--blue-950);
+    font-size:.95rem;
+    font-weight:800;
+}
+
+.appbar-meta{
+    color:var(--blue-700);
+    font-size:.76rem;
+}
+
+/* ---------- Hero ---------- */
+
+.hero{
+    position:relative;
+    overflow:hidden;
+    border:1px solid var(--blue-100);
+    border-radius:22px;
+    padding:42px 44px;
+    background:linear-gradient(135deg,var(--white) 0%,var(--blue-50) 100%);
+    margin-bottom:20px;
+}
+
+.hero:after{
+    content:"";
+    position:absolute;
+    width:220px;
+    height:220px;
+    right:-70px;
+    top:-80px;
+    border-radius:50%;
+    border:30px solid var(--blue-100);
+    opacity:.55;
+}
+
+.hero-eyebrow{
+    color:var(--blue-700);
+    font-size:.70rem;
+    font-weight:900;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+}
+
+.hero-title{
+    color:var(--blue-950);
+    font-size:2.8rem;
+    line-height:1.04;
+    font-weight:900;
+    letter-spacing:-.055em;
+    max-width:760px;
+    margin-top:12px;
+}
+
+.hero-copy{
+    color:var(--blue-800);
+    max-width:720px;
+    line-height:1.65;
+    font-size:.98rem;
+    margin-top:13px;
+}
+
+.hero-actions{
+    margin-top:24px;
+}
+
+/* ---------- KPI row ---------- */
+
+.kpi{
+    border:1px solid var(--blue-100);
+    border-radius:15px;
+    background:var(--white);
+    padding:17px;
+    min-height:92px;
+}
+
+.kpi-value{
+    color:var(--blue-950);
+    font-size:1.35rem;
+    font-weight:900;
+}
+
+.kpi-label{
+    color:var(--blue-700);
+    font-size:.72rem;
+    margin-top:3px;
+}
+
+/* ---------- Section headers ---------- */
+
+.section{
+    margin-top:30px;
+    margin-bottom:13px;
+}
+
+.section-title{
+    color:var(--blue-950);
+    font-size:1.22rem;
+    font-weight:850;
+    letter-spacing:-.025em;
+}
+
+.section-subtitle{
+    color:var(--blue-700);
+    font-size:.78rem;
+    margin-top:3px;
+}
+
+/* ---------- Library ---------- */
+
+.story-card{
+    border:1px solid var(--blue-100);
+    border-radius:17px;
+    background:var(--white);
+    padding:20px;
+    min-height:178px;
+    transition:.15s ease;
+}
+
+.story-card:hover{
+    border-color:var(--blue-500);
+    box-shadow:0 8px 28px rgba(37,99,235,.10);
+}
+
+.story-badge{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:38px;
+    height:38px;
+    border-radius:10px;
+    background:var(--blue-600);
+    color:var(--white);
+    font-size:.80rem;
+    font-weight:900;
+    margin-bottom:14px;
+}
+
+.story-title{
+    color:var(--blue-950);
+    font-size:1rem;
+    font-weight:850;
+}
+
+.story-description{
+    color:var(--blue-700);
+    font-size:.78rem;
+    line-height:1.55;
+    margin-top:6px;
+    min-height:50px;
+}
+
+/* ---------- Create workspace ---------- */
+
+.create-shell{
+    border:1px solid var(--blue-100);
+    border-radius:20px;
+    background:var(--white);
+    padding:26px;
+}
+
+.create-label{
+    color:var(--blue-950);
+    font-size:1rem;
+    font-weight:850;
+    margin-bottom:6px;
+}
+
+.create-help{
+    color:var(--blue-700);
+    font-size:.78rem;
+    line-height:1.5;
+    margin-bottom:16px;
+}
+
+.pipeline{
+    display:grid;
+    grid-template-columns:repeat(6,1fr);
+    gap:8px;
+    margin:0 0 22px;
+}
+
+.pipeline-item{
+    border:1px solid var(--blue-100);
+    border-radius:10px;
+    padding:10px;
+    background:var(--blue-50);
+    text-align:center;
+}
+
+.pipeline-num{
+    color:var(--blue-600);
+    font-size:.67rem;
+    font-weight:900;
+}
+
+.pipeline-name{
+    color:var(--blue-900);
+    font-size:.69rem;
+    font-weight:750;
+    margin-top:3px;
+}
+
+/* ---------- Reader ---------- */
+
+.reader-grid{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 280px;
+    gap:20px;
+}
+
+.reader-panel{
+    border:1px solid var(--blue-100);
+    border-radius:20px;
+    background:var(--white);
+    padding:32px;
+}
+
+.reader-title{
+    color:var(--blue-950);
+    font-size:2rem;
+    font-weight:900;
+    line-height:1.1;
+}
+
+.reader-meta{
+    color:var(--blue-700);
+    font-size:.75rem;
+    margin-top:7px;
+}
+
+.reader-story{
+    color:var(--blue-900);
+    font-size:1rem;
+    line-height:1.95;
+    margin-top:23px;
+    white-space:pre-line;
+}
+
+.narrator-panel{
+    border:1px solid var(--blue-100);
+    border-radius:20px;
+    background:var(--blue-50);
+    padding:20px;
+    text-align:center;
+}
+
+.narrator-avatar{
+    width:72px;
+    height:72px;
+    margin:0 auto 12px;
+    border-radius:50%;
+    background:var(--blue-600);
+    color:var(--white);
+    display:grid;
+    place-items:center;
+    font-size:27px;
+    font-weight:900;
+}
+
+.narrator-name{
+    color:var(--blue-950);
+    font-weight:850;
+}
+
+.narrator-role{
+    color:var(--blue-700);
+    font-size:.73rem;
+    margin-top:3px;
+}
+
+/* ---------- Scenes ---------- */
+
+.scene-selector{
+    border:1px solid var(--blue-100);
+    border-radius:17px;
+    padding:18px;
+    background:var(--white);
+}
+
+.scene-label{
+    color:var(--blue-600);
+    font-size:.68rem;
+    font-weight:900;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+}
+
+.scene-title{
+    color:var(--blue-950);
+    font-size:1.18rem;
+    font-weight:850;
+    margin-top:4px;
+}
+
+.scene-copy{
+    color:var(--blue-700);
+    font-size:.78rem;
+    line-height:1.55;
+    margin-top:7px;
+}
+
+/* ---------- Character cards ---------- */
+
+.character-card{
+    border:1px solid var(--blue-100);
+    border-radius:15px;
+    background:var(--white);
+    padding:17px;
+}
+
+.character-name{
+    color:var(--blue-900);
+    font-weight:850;
+}
+
+.character-description{
+    color:var(--blue-700);
+    font-size:.76rem;
+    line-height:1.5;
+    margin-top:5px;
+}
+
+/* ---------- Buttons / controls ---------- */
+
+.stButton > button,
+.stFormSubmitButton > button{
+    border-radius:10px!important;
+    min-height:42px;
+    border:1px solid var(--blue-200)!important;
+    background:var(--white)!important;
+    color:var(--blue-800)!important;
+    font-weight:750!important;
+    box-shadow:none!important;
+}
+
+.stButton > button:hover,
+.stFormSubmitButton > button:hover{
+    border-color:var(--blue-600)!important;
+    background:var(--blue-50)!important;
+    color:var(--blue-900)!important;
+}
+
+.stButton > button[kind="primary"],
+.stFormSubmitButton > button[kind="primary"]{
+    background:var(--blue-600)!important;
+    border-color:var(--blue-600)!important;
+    color:var(--white)!important;
+}
+
+.stButton > button[kind="primary"]:hover,
+.stFormSubmitButton > button[kind="primary"]:hover{
+    background:var(--blue-700)!important;
+    border-color:var(--blue-700)!important;
+    color:var(--white)!important;
+}
+
+div[data-baseweb="input"] > div,
+div[data-baseweb="textarea"] > div,
+div[data-baseweb="select"] > div{
+    background:var(--white)!important;
+    border-color:var(--blue-100)!important;
+    border-radius:10px!important;
+}
+
+div[data-baseweb="input"]:focus-within > div,
+div[data-baseweb="textarea"]:focus-within > div,
+div[data-baseweb="select"]:focus-within > div{
+    border-color:var(--blue-500)!important;
+    box-shadow:0 0 0 2px var(--blue-100)!important;
+}
+
+textarea,
+input{
+    color:var(--blue-950)!important;
+}
+
+audio{
+    width:100%;
+}
+
+hr{
+    border-color:var(--blue-100);
+}
+
+@media (max-width:900px){
+    .block-container{padding:1rem 1rem 3rem;}
+    .hero{padding:28px 24px;}
+    .hero-title{font-size:2rem;}
+    .pipeline{grid-template-columns:repeat(3,1fr);}
+    .reader-grid{display:block;}
+}
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
+
 # ============================================================
 # SIDEBAR
 # ============================================================
 
 with st.sidebar:
     st.markdown(
-        '<div class="brand"><div class="brand-mark">S</div> Story Studio</div>',
+        """
+        <div class="ss-brand">
+            <div class="ss-logo">S</div>
+            <div>
+                <div class="ss-brand-name">Story Studio</div>
+                <div class="ss-brand-sub">AI CREATIVE WORKSPACE</div>
+            </div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
-    st.caption(f"Enterprise Storytelling · v{APP_VERSION}")
 
-    st.markdown("---")
-    st.markdown("#### Workspace")
+    st.markdown('<div class="nav-label">Workspace</div>', unsafe_allow_html=True)
 
+    nav_options = ["Library", "Create", "Reader"]
     nav = st.radio(
-        "Navigate",
-        ["Library", "Create", "Reader"],
-        index=["Library", "Create", "Reader"].index(st.session_state.view),
+        "Workspace navigation",
+        nav_options,
+        index=nav_options.index(st.session_state.view),
         label_visibility="collapsed",
     )
+
     if nav != st.session_state.view:
         st.session_state.view = nav
 
-    st.markdown("---")
-    st.markdown("#### Creation settings")
+    st.markdown('<div class="nav-label">Story settings</div>', unsafe_allow_html=True)
 
     st.session_state.language = st.selectbox(
         "Language",
@@ -1423,7 +1954,7 @@ with st.sidebar:
     )
 
     st.session_state.art_style = st.selectbox(
-        "Illustration style",
+        "Visual style",
         list(ART_STYLES.keys()),
         index=list(ART_STYLES.keys()).index(st.session_state.art_style),
     )
@@ -1435,38 +1966,47 @@ with st.sidebar:
     )
 
     st.session_state.generate_images = st.toggle(
-        "Create illustrations",
+        "Generate illustrations",
         value=st.session_state.generate_images,
     )
 
-    active_narrator = NARRATORS[st.session_state.narrator]
+    narrator = NARRATORS[st.session_state.narrator]
+
     st.markdown(
         f"""
-        <div class="character">
-            <div class="avatar">{safe_html(active_narrator["avatar"])}</div>
-            <div class="character-name">{safe_html(st.session_state.narrator)}</div>
-            <div class="character-role">{safe_html(active_narrator["description"])}</div>
+        <div class="sidebar-card">
+            <div class="status-line">
+                <span class="status-dot"></span>
+                Narrator ready
+            </div>
+            <div style="margin-top:10px;font-weight:850;color:#082f63;">
+                {safe_html(st.session_state.narrator)}
+            </div>
+            <div style="margin-top:3px;color:#155fc2;font-size:.72rem;">
+                {safe_html(narrator["description"])}
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    st.markdown("---")
+    st.markdown('<div class="nav-label">System</div>', unsafe_allow_html=True)
 
     status = provider_status()
-    if status == "Unavailable":
-        st.markdown(
-            '<div class="status-warn">AI provider not configured</div>',
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            f'<div class="status-ok">AI provider: {safe_html(status)}</div>',
-            unsafe_allow_html=True,
-        )
 
-    st.caption(
-        "Groq key is read from .env and never rendered in the UI."
+    st.markdown(
+        f"""
+        <div class="sidebar-card">
+            <div class="status-line">
+                <span class="status-dot"></span>
+                AI engine: {safe_html(status)}
+            </div>
+            <div style="margin-top:7px;color:#155fc2;font-size:.70rem;">
+                API credentials are loaded from .env.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
     if st.button("Clear workspace", use_container_width=True):
@@ -1475,63 +2015,78 @@ with st.sidebar:
 
 
 # ============================================================
-# TOP BAR / HERO
+# APPLICATION HEADER
 # ============================================================
 
 st.markdown(
     """
-<div class="topbar">
-    <div class="brand">
-        <div class="brand-mark">S</div>
-        Story Studio
+    <div class="appbar">
+        <div class="appbar-title">Story Studio</div>
+        <div class="appbar-meta">Create · Illustrate · Narrate</div>
     </div>
-    <div class="small-note">Create · Read · Illustrate · Listen</div>
-</div>
-""",
-    unsafe_allow_html=True,
-)
-
-st.markdown(
-    """
-<div class="hero">
-    <span class="eyebrow">ENTERPRISE AI STORYTELLING</span>
-    <div class="hero-title">Stories that feel alive.</div>
-    <div class="hero-copy">
-        Turn a simple idea into a structured story, consistent characters,
-        illustrated scenes and professional narration.
-    </div>
-    <div class="pills">
-        <span class="pill">Structured generation</span>
-        <span class="pill">Character consistency</span>
-        <span class="pill">Scene planning</span>
-        <span class="pill">AI narration</span>
-        <span class="pill">Open-source fallback</span>
-    </div>
-</div>
-""",
+    """,
     unsafe_allow_html=True,
 )
 
 
 # ============================================================
-# METRICS
+# HERO
 # ============================================================
 
-m1, m2, m3, m4 = st.columns(4)
-metric_values = [
-    (len(st.session_state.stories), "Stories"),
-    (len(st.session_state.image_cache), "Images cached"),
-    (len(st.session_state.audio_cache), "Narrations cached"),
-    (provider_status(), "AI engine"),
-]
+st.markdown(
+    """
+    <div class="hero">
+        <div class="hero-eyebrow">AI STORYTELLING PLATFORM</div>
+        <div class="hero-title">Create stories people want to keep.</div>
+        <div class="hero-copy">
+            Build a complete story from one idea. Story Studio develops the
+            narrative, characters, scenes and narration through a structured
+            AI workflow.
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-for col, (value, label) in zip((m1, m2, m3, m4), metric_values):
+# Primary action row
+a1, a2, a3 = st.columns([1.2, 1, 1])
+with a1:
+    if st.button("Create a new story", type="primary", use_container_width=True):
+        st.session_state.view = "Create"
+        st.rerun()
+with a2:
+    if st.button("Browse story library", use_container_width=True):
+        st.session_state.view = "Library"
+        st.rerun()
+with a3:
+    if st.button("Open current story", use_container_width=True):
+        if st.session_state.pending_story:
+            st.session_state.view = "Reader"
+        else:
+            st.session_state.view = "Library"
+        st.rerun()
+
+
+# ============================================================
+# KPI BAR
+# ============================================================
+
+k1, k2, k3, k4 = st.columns(4)
+for col, (value, label) in zip(
+    (k1, k2, k3, k4),
+    [
+        (len(st.session_state.stories), "Stories"),
+        (len(st.session_state.image_cache), "Illustrations"),
+        (len(st.session_state.audio_cache), "Narrations"),
+        (provider_status(), "AI engine"),
+    ],
+):
     with col:
         st.markdown(
             f"""
-            <div class="metric">
-                <div class="metric-number">{safe_html(value)}</div>
-                <div class="metric-label">{safe_html(label)}</div>
+            <div class="kpi">
+                <div class="kpi-value">{safe_html(value)}</div>
+                <div class="kpi-label">{safe_html(label)}</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -1543,21 +2098,31 @@ for col, (value, label) in zip((m1, m2, m3, m4), metric_values):
 # ============================================================
 
 if st.session_state.view == "Library":
-    st.markdown("### Your story library")
-    st.caption("Starter stories are immediately readable. Generated stories are added to this workspace.")
+
+    st.markdown(
+        """
+        <div class="section">
+            <div class="section-title">Story library</div>
+            <div class="section-subtitle">
+                Start with a ready-made story or open one you created.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     stories = list(st.session_state.stories.values())
-
     cols = st.columns(3)
+
     for idx, item in enumerate(stories):
         with cols[idx % 3]:
             st.markdown(
                 f"""
-                <div class="story-tile">
-                    <div class="story-icon">📖</div>
-                    <div class="story-title">{safe_html(item.get("title", "Untitled"))}</div>
+                <div class="story-card">
+                    <div class="story-badge">S</div>
+                    <div class="story-title">{safe_html(item.get("title","Untitled"))}</div>
                     <div class="story-description">
-                        {safe_html(item.get("description", ""))[:220]}
+                        {safe_html(item.get("description",""))}
                     </div>
                 </div>
                 """,
@@ -1566,31 +2131,39 @@ if st.session_state.view == "Library":
 
             if st.button(
                 "Open story",
-                key=f"open_{item['id']}",
+                key=f"library_open_{item['id']}",
                 use_container_width=True,
             ):
                 if open_story(item["id"]):
                     st.rerun()
 
-    st.markdown("---")
-    st.markdown("### What happens after you create a story")
+    st.markdown(
+        """
+        <div class="section">
+            <div class="section-title">How the studio works</div>
+            <div class="section-subtitle">
+                One workspace from idea to finished narrated story.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    p1, p2, p3, p4 = st.columns(4)
-    steps = [
-        ("01", "Story Bible", "Characters, setting, goal and conflict are defined first."),
-        ("02", "Narrative", "Outline, draft and continuity editing happen as separate stages."),
-        ("03", "Visuals", "Scenes inherit the same character descriptions for consistency."),
-        ("04", "Narrator", "Read the story or generate narration for the complete story or a scene."),
-    ]
+    h1, h2, h3 = st.columns(3)
 
-    for col, (num, title, body) in zip((p1, p2, p3, p4), steps):
+    for col, title, body in [
+        (h1, "01 · Build", "Define the story idea, characters, setting and emotional direction."),
+        (h2, "02 · Produce", "Generate the narrative, continuity edit and visual scene plan."),
+        (h3, "03 · Experience", "Read, illustrate and narrate the finished story scene by scene."),
+    ]:
         with col:
             st.markdown(
                 f"""
                 <div class="card">
-                    <div style="color:#2563eb;font-weight:850;">{num}</div>
-                    <div style="font-weight:800;margin-top:7px;">{safe_html(title)}</div>
-                    <div class="small-note" style="margin-top:5px;">{safe_html(body)}</div>
+                    <div style="font-weight:850;color:#0f4fa8;">{safe_html(title)}</div>
+                    <div style="margin-top:6px;color:#155fc2;font-size:.76rem;line-height:1.55;">
+                        {safe_html(body)}
+                    </div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -1602,53 +2175,72 @@ if st.session_state.view == "Library":
 # ============================================================
 
 elif st.session_state.view == "Create":
-    st.markdown("### Create a story")
-    st.caption("The engine uses a multi-stage pipeline instead of asking one model call to do everything.")
 
     st.markdown(
         """
-        <div class="pipeline">
-            <div class="pipeline-step"><div class="pipeline-dot">1</div>Story brief</div>
-            <div style="height:8px;"></div>
-            <div class="pipeline-step"><div class="pipeline-dot">2</div>Story bible</div>
-            <div style="height:8px;"></div>
-            <div class="pipeline-step"><div class="pipeline-dot">3</div>Outline</div>
-            <div style="height:8px;"></div>
-            <div class="pipeline-step"><div class="pipeline-dot">4</div>Draft</div>
-            <div style="height:8px;"></div>
-            <div class="pipeline-step"><div class="pipeline-dot">5</div>Continuity edit</div>
-            <div style="height:8px;"></div>
-            <div class="pipeline-step"><div class="pipeline-dot">6</div>Scene director</div>
+        <div class="section">
+            <div class="section-title">Create a new story</div>
+            <div class="section-subtitle">
+                Describe the idea. The studio handles the narrative architecture.
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    st.markdown("")
+    st.markdown('<div class="create-shell">', unsafe_allow_html=True)
+
+    st.markdown(
+        """
+        <div class="create-label">Your story idea</div>
+        <div class="create-help">
+            Include a character, situation, lesson, genre or emotion.
+            You do not need to write the full story.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     prompt = st.text_area(
         "Story idea",
-        height=150,
+        height=175,
         placeholder=(
-            "Example: Create a warm adventure about a little robot "
-            "who helps a lost child find the way home. Make it "
-            "funny, emotional and suitable for children."
+            "Example: A small robot gets lost in a city during a power outage "
+            "and discovers that helping people is more important than completing "
+            "its original mission."
         ),
+        label_visibility="collapsed",
     )
 
-    c1, c2, c3 = st.columns([1.1, 1.1, 1])
-    with c1:
-        st.caption(f"Language: {st.session_state.language}")
-    with c2:
-        st.caption(f"Style: {st.session_state.art_style}")
-    with c3:
-        st.caption(f"Narrator: {st.session_state.narrator}")
+    st.markdown(
+        """
+        <div class="pipeline">
+            <div class="pipeline-item"><div class="pipeline-num">01</div><div class="pipeline-name">Brief</div></div>
+            <div class="pipeline-item"><div class="pipeline-num">02</div><div class="pipeline-name">Characters</div></div>
+            <div class="pipeline-item"><div class="pipeline-num">03</div><div class="pipeline-name">Outline</div></div>
+            <div class="pipeline-item"><div class="pipeline-num">04</div><div class="pipeline-name">Draft</div></div>
+            <div class="pipeline-item"><div class="pipeline-num">05</div><div class="pipeline-name">Edit</div></div>
+            <div class="pipeline-item"><div class="pipeline-num">06</div><div class="pipeline-name">Scenes</div></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    s1, s2, s3 = st.columns(3)
+    with s1:
+        st.caption(f"Language · {st.session_state.language}")
+    with s2:
+        st.caption(f"Visuals · {st.session_state.art_style}")
+    with s3:
+        st.caption(f"Narrator · {st.session_state.narrator}")
 
     generate_clicked = st.button(
-        "Create professional story",
+        "Generate story",
         type="primary",
         use_container_width=True,
     )
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
     if generate_clicked:
         clean = clean_prompt(prompt)
@@ -1656,17 +2248,15 @@ elif st.session_state.view == "Create":
         if not clean:
             st.warning("Describe the story you want to create.")
         else:
-            progress = st.progress(0, text="Preparing story brief...")
+            progress = st.progress(0, text="Starting story studio...")
             try:
                 progress.progress(8, text="Building story bible...")
-                # Run pipeline with stage messaging. The individual functions
-                # remain separately testable and can later become background jobs.
                 bible = build_story_bible(clean, st.session_state.language)
 
-                progress.progress(24, text="Planning narrative structure...")
+                progress.progress(25, text="Planning narrative...")
                 outline = build_outline(bible, st.session_state.language)
 
-                progress.progress(42, text="Writing the first draft...")
+                progress.progress(43, text="Writing story...")
                 draft = draft_story(
                     bible,
                     outline,
@@ -1674,14 +2264,14 @@ elif st.session_state.view == "Create":
                     st.session_state.narrator,
                 )
 
-                progress.progress(62, text="Running continuity and quality edit...")
+                progress.progress(62, text="Running editorial quality pass...")
                 edited = edit_story(
                     bible,
                     draft,
                     st.session_state.language,
                 )
 
-                progress.progress(80, text="Directing illustrated scenes...")
+                progress.progress(82, text="Designing illustrated scenes...")
                 scenes = plan_scenes(
                     bible,
                     edited["story"],
@@ -1727,10 +2317,6 @@ elif st.session_state.view == "Create":
 
             except Exception as exc:
                 st.error(f"Story creation failed: {safe_error(exc)}")
-                st.caption(
-                    "If using Groq, verify GROQ_API_KEY in .env and the configured GROQ_MODEL. "
-                    "The app also supports an optional local Ollama provider."
-                )
 
 
 # ============================================================
@@ -1738,39 +2324,66 @@ elif st.session_state.view == "Create":
 # ============================================================
 
 elif st.session_state.view == "Reader":
+
     active = st.session_state.pending_story
 
     if not active or not active.get("story"):
-        st.info("No story is open. Choose a story from the Library or create a new one.")
-        if st.button("Go to Library", type="primary"):
+        st.markdown(
+            """
+            <div class="card">
+                <div style="font-size:1.1rem;font-weight:850;color:#082f63;">
+                    No story is open
+                </div>
+                <div style="margin-top:5px;color:#155fc2;font-size:.78rem;">
+                    Choose a story from the library or create a new one.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        if st.button("Go to story library", type="primary"):
             st.session_state.view = "Library"
             st.rerun()
+
     else:
         title = active.get("title", "Untitled Story")
         narrator_name = active.get("narrator", st.session_state.narrator)
         narrator = NARRATORS.get(narrator_name, NARRATORS["Story Guide"])
 
-        top1, top2 = st.columns([4, 1])
-        with top1:
-            st.markdown(f"### {safe_html(title)}")
-            st.caption(
-                f"{safe_html(active.get('language', 'English'))} · "
-                f"{safe_html(active.get('style', 'Illustrated'))} · "
-                f"Quality pass: {active.get('quality_score', '—')}/100"
+        rtop1, rtop2 = st.columns([4,1])
+        with rtop1:
+            st.markdown(
+                f"""
+                <div class="section" style="margin-top:0;">
+                    <div class="section-title">{safe_html(title)}</div>
+                    <div class="section-subtitle">
+                        {safe_html(active.get("language","English"))}
+                        · {safe_html(active.get("style","Illustrated"))}
+                        · Quality {active.get("quality_score","—")}/100
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
-        with top2:
+        with rtop2:
             if st.button("← Library", use_container_width=True):
                 st.session_state.view = "Library"
                 st.rerun()
+
+        st.markdown('<div class="reader-grid">', unsafe_allow_html=True)
 
         left, right = st.columns([3.2, 1])
 
         with left:
             st.markdown(
                 f"""
-                <div class="reader">
+                <div class="reader-panel">
                     <div class="reader-title">{safe_html(title)}</div>
-                    <div class="reader-copy">{safe_html(active.get("story", ""))}</div>
+                    <div class="reader-meta">
+                        {safe_html(active.get("description",""))}
+                    </div>
+                    <div class="reader-story">{safe_html(active.get("story",""))}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -1779,14 +2392,16 @@ elif st.session_state.view == "Reader":
         with right:
             st.markdown(
                 f"""
-                <div class="character">
-                    <div class="avatar">{safe_html(narrator["avatar"])}</div>
-                    <div class="character-name">{safe_html(narrator_name)}</div>
-                    <div class="character-role">AI Story Narrator</div>
+                <div class="narrator-panel">
+                    <div class="narrator-avatar">{safe_html(narrator["avatar"])}</div>
+                    <div class="narrator-name">{safe_html(narrator_name)}</div>
+                    <div class="narrator-role">AI Story Narrator</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
+
+            st.markdown("")
 
             if st.button(
                 "▶ Tell full story",
@@ -1796,59 +2411,70 @@ elif st.session_state.view == "Reader":
             ):
                 with st.spinner("Preparing narration..."):
                     audio = generate_audio(active["story"], narrator_name)
+
                 if audio:
                     st.audio(audio, format="audio/mp3")
                 else:
                     st.error("Narration could not be generated.")
 
-            if st.button(
-                "Create / refresh story visuals",
-                use_container_width=True,
-                key=f"refresh_visuals_{active['id']}",
-            ):
-                # Cache is deterministic. This action simply moves the user
-                # back through the scene cards; failed images can be retried.
-                st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("---")
-        st.markdown("### Characters")
-
+        # Characters
         characters = active.get("characters", [])
         if characters:
-            char_cols = st.columns(min(3, len(characters)))
+            st.markdown(
+                """
+                <div class="section">
+                    <div class="section-title">Characters</div>
+                    <div class="section-subtitle">Visual identities used across the story.</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            cc = st.columns(min(3, len(characters)))
             for idx, character in enumerate(characters):
-                with char_cols[idx % len(char_cols)]:
+                with cc[idx % len(cc)]:
                     st.markdown(
                         f"""
-                        <div class="card">
-                            <div style="font-weight:800;color:#123f82;">
-                                {safe_html(character.get("name", "Character"))}
+                        <div class="character-card">
+                            <div class="character-name">
+                                {safe_html(character.get("name","Character"))}
                             </div>
-                            <div class="small-note" style="margin-top:5px;">
-                                {safe_html(character.get("description", ""))}
+                            <div class="character-description">
+                                {safe_html(character.get("description",""))}
                             </div>
                         </div>
                         """,
                         unsafe_allow_html=True,
                     )
 
+        # Scenes
         scenes = active.get("scenes", [])
-
         if scenes:
-            st.markdown("---")
-            st.markdown("### Illustrated scenes")
+            st.markdown(
+                """
+                <div class="section">
+                    <div class="section-title">Scenes</div>
+                    <div class="section-subtitle">
+                        Explore the story visually one scene at a time.
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
             scene_titles = [
-                f"{i + 1}. {scene.get('title', 'Scene')}"
+                f"{i + 1}. {scene.get('title','Scene')}"
                 for i, scene in enumerate(scenes)
             ]
 
             selected = st.selectbox(
-                "Scene",
+                "Choose a scene",
                 list(range(len(scenes))),
                 index=min(
                     st.session_state.selected_scene,
-                    max(0, len(scenes) - 1),
+                    max(0, len(scenes)-1),
                 ),
                 format_func=lambda i: scene_titles[i],
             )
@@ -1858,12 +2484,10 @@ elif st.session_state.view == "Reader":
 
             st.markdown(
                 f"""
-                <div class="scene-card">
+                <div class="scene-selector">
                     <div class="scene-label">Scene {selected + 1}</div>
-                    <h3>{safe_html(scene.get("title", "Scene"))}</h3>
-                    <div class="small-note">
-                        {safe_html(scene.get("story_excerpt", ""))}
-                    </div>
+                    <div class="scene-title">{safe_html(scene.get("title","Scene"))}</div>
+                    <div class="scene-copy">{safe_html(scene.get("story_excerpt",""))}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -1881,19 +2505,18 @@ elif st.session_state.view == "Reader":
                 else:
                     st.warning(
                         "The illustration service did not return an image. "
-                        "The story itself is still available."
+                        "The story remains available."
                     )
 
-            s1, s2 = st.columns([1, 1])
-            with s1:
+            b1, b2 = st.columns(2)
+
+            with b1:
                 if st.button(
-                    "▶ Narrate this scene",
+                    "▶ Narrate scene",
                     use_container_width=True,
                     key=f"scene_audio_{active['id']}_{selected}",
                 ):
-                    text = scene.get("story_excerpt", "").strip()
-                    if not text:
-                        text = active["story"]
+                    text = scene.get("story_excerpt", "").strip() or active["story"]
 
                     with st.spinner("Preparing scene narration..."):
                         audio = generate_audio(text, narrator_name)
@@ -1903,29 +2526,27 @@ elif st.session_state.view == "Reader":
                     else:
                         st.error("Scene narration could not be generated.")
 
-            with s2:
+            with b2:
                 if st.button(
                     "Next scene →",
                     use_container_width=True,
-                    disabled=selected >= len(scenes) - 1,
+                    disabled=selected >= len(scenes)-1,
                     key=f"next_{active['id']}_{selected}",
                 ):
                     st.session_state.selected_scene = min(
                         selected + 1,
-                        len(scenes) - 1,
+                        len(scenes)-1,
                     )
                     st.rerun()
 
         with st.expander("Story architecture"):
-            st.write(
-                {
-                    "provider": provider_status(),
-                    "model": GROQ_MODEL if provider_status() == "Groq" else OLLAMA_MODEL,
-                    "pipeline": active.get("pipeline", []),
-                    "created_at": active.get("created_at", ""),
-                    "editor_notes": active.get("editor_notes", []),
-                }
-            )
+            st.write({
+                "provider": provider_status(),
+                "model": GROQ_MODEL if provider_status() == "Groq" else OLLAMA_MODEL,
+                "pipeline": active.get("pipeline", []),
+                "created_at": active.get("created_at", ""),
+                "editor_notes": active.get("editor_notes", []),
+            })
 
 
 # ============================================================
@@ -1933,7 +2554,11 @@ elif st.session_state.view == "Reader":
 # ============================================================
 
 st.markdown("---")
-st.caption(
-    "Story Studio Enterprise · Structured AI generation · "
-    "Character-aware scene planning · Cached media · Provider abstraction"
+st.markdown(
+    """
+    <div style="text-align:center;color:#155fc2;font-size:.70rem;">
+        STORY STUDIO · AI STORYTELLING WORKSPACE
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
