@@ -1,3 +1,44 @@
+
+"""
+Story Studio Enterprise v4
+---------------------------
+A production-oriented Streamlit storytelling workspace.
+
+Key improvements over v3:
+- .env support for GROQ_API_KEY via python-dotenv.
+- Starter stories are real readable stories, not metadata-only cards.
+- Library/Open flow actually loads a story and switches to Reader.
+- Explicit application navigation instead of static tabs.
+- Advanced multi-stage story pipeline:
+    1. Story brief / story bible
+    2. Narrative outline
+    3. Full draft
+    4. Continuity / quality pass
+    5. Scene + character visual plan
+- Structured JSON outputs with schema validation.
+- Groq structured-output support with graceful fallback.
+- Optional open-source Ollama backend.
+- Deterministic caching for AI text, images and audio.
+- Character consistency instructions shared across scenes.
+- Scene-level narration instead of one giant opaque audio job.
+- Reader progress, scene selection and per-scene narration.
+- Safer HTML escaping for generated text.
+- No LLM-controlled CSS or Streamlit state.
+- Provider abstraction so the UI is not tied to one LLM vendor.
+
+Run:
+    pip install -r requirements.txt
+    copy .env.example .env
+    # Put your real GROQ_API_KEY in .env
+    streamlit run story_studio_enterprise_v4.py
+
+Optional local open-source LLM:
+    Install Ollama and pull a model such as llama3.1:8b.
+    Set:
+        LLM_PROVIDER=auto
+        OLLAMA_MODEL=llama3.1:8b
+"""
+
 import os
 import re
 import json
@@ -6,28 +47,33 @@ import base64
 import asyncio
 import tempfile
 import hashlib
+import html
 import urllib.parse
 from typing import Any, Dict, List, Optional
 
 import requests
 import edge_tts
 import streamlit as st
-from groq import Groq
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
+
+try:
+    from groq import Groq
+except Exception:
+    Groq = None
+
+try:
+    from ollama import chat as ollama_chat
+except Exception:
+    ollama_chat = None
 
 
 # ============================================================
-# STORY STUDIO — ENTERPRISE EDITION
-# Architecture:
-#   1. Story library / existing stories
-#   2. Story generation service
-#   3. Scene planner
-#   4. Visual generation with persistent cache
-#   5. Narrator / character presentation
-#   6. Explicit audio generation
-#
-# Important design choice:
-# Never let an LLM directly mutate Streamlit CSS/state.
-# AI returns structured content; application code controls UI.
+# PRODUCT CONFIG
 # ============================================================
 
 st.set_page_config(
@@ -37,16 +83,19 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# -----------------------------
-# Environment / product config
-# -----------------------------
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+APP_VERSION = "4.0.0"
 
-MAX_HISTORY = 40
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b").strip()
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "auto").strip().lower()
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b").strip()
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").strip()
+
 MAX_PROMPT_LENGTH = 3000
-MAX_STORY_CHARS = 18000
-IMAGE_TIMEOUT = 25
+MAX_STORY_CHARS = 22000
+MAX_HISTORY = 40
+MAX_SCENES = 8
+IMAGE_TIMEOUT = 30
 IMAGE_RETRIES = 3
 
 LANGUAGES = [
@@ -56,7 +105,7 @@ LANGUAGES = [
 ]
 
 ART_STYLES = {
-    "Illustrated": "polished editorial digital illustration, warm professional storybook art",
+    "Illustrated": "polished editorial storybook illustration, warm professional digital art",
     "Cartoon": "friendly high-quality cartoon illustration, expressive characters, clean shapes",
     "Comic": "professional comic-book illustration, expressive characters, clean ink",
     "Cinematic": "cinematic digital artwork, detailed environment, natural lighting",
@@ -86,9 +135,12 @@ NARRATORS = {
     },
 }
 
-# Existing built-in stories.
-# Replace these with database/Supabase records later.
-STARTER_STORIES = [
+
+# ============================================================
+# REAL STARTER STORIES
+# ============================================================
+
+STARTER_STORIES: List[Dict[str, Any]] = [
     {
         "id": "moon_lantern",
         "title": "The Moon Lantern",
@@ -96,14 +148,142 @@ STARTER_STORIES = [
         "prompt": "A young child discovers an old moon-shaped lantern in the attic. The lantern reveals beautiful memories from the child's family history.",
         "style": "Cartoon",
         "narrator": "Emma",
+        "mood": "wonder",
+        "story": """Mira had always wondered why the attic was locked.
+
+One rainy evening, while her grandmother searched for an old blanket, the attic door was left open. Mira climbed the narrow stairs and found boxes filled with photographs, ribbons, wooden toys, and a small moon-shaped lantern.
+
+The lantern looked ordinary until Mira brushed away the dust.
+
+A soft silver light appeared inside it.
+
+The light did not shine on the walls. Instead, it painted a tiny scene in the air: a little girl running through the same garden behind Mira's house. The girl was laughing beside a much younger version of Mira's grandmother.
+
+Mira called her grandmother upstairs.
+
+For a long moment, Grandma simply stared.
+
+“That was my sister,” she whispered. “Her name was Leela.”
+
+The lantern showed another memory. Two sisters sitting beneath a mango tree. Another followed: the sisters making paper boats after a storm. Then another: Leela leaving the village with her family.
+
+Mira realized that the lantern did not reveal forgotten objects. It revealed forgotten moments.
+
+Together, Mira and Grandma spent the evening watching memories that had been hidden for years. They laughed at old mistakes, remembered people whose names had almost disappeared, and discovered stories nobody had written down.
+
+Before bed, Mira asked, “Why did the lantern choose me?”
+
+Grandma smiled.
+
+“Perhaps memories need someone curious enough to listen.”
+
+Mira placed the lantern beside her bed.
+
+Its silver light became quiet.
+
+But she knew that whenever someone was ready to remember, the little moon would shine again.""",
+        "characters": [
+            {
+                "name": "Mira",
+                "description": "A curious 10-year-old child with dark wavy hair, a yellow raincoat and a small blue backpack."
+            },
+            {
+                "name": "Grandma",
+                "description": "A kind elderly woman with silver hair, round glasses and a soft lavender shawl."
+            },
+        ],
+        "scenes": [
+            {
+                "title": "The Hidden Attic",
+                "visual_prompt": "Mira, a curious 10-year-old child with dark wavy hair, yellow raincoat and blue backpack, stands in a dusty attic filled with old boxes and photographs while holding a small moon-shaped lantern, rainy evening light through a round window, warm magical atmosphere, wide cinematic composition."
+            },
+            {
+                "title": "The First Memory",
+                "visual_prompt": "The silver moon lantern projects a glowing memory into the attic: a young girl running through a family garden beside her sister, soft silver light, Mira watching in wonder, magical particles, intimate storybook composition."
+            },
+            {
+                "title": "Remembering Leela",
+                "visual_prompt": "Mira and her elderly grandmother with silver hair, round glasses and lavender shawl sit together in the attic watching a luminous memory of two young sisters beneath a mango tree, emotional but gentle mood, warm blue-silver lighting."
+            },
+            {
+                "title": "The Lantern Sleeps",
+                "visual_prompt": "Mira places the moon-shaped lantern beside her bed at night, the lantern glowing softly while rain falls outside the window, peaceful bedroom, subtle magical light, cozy children's storybook illustration."
+            },
+        ],
     },
     {
         "id": "little_robot",
         "title": "The Little Robot",
         "description": "A small robot learns that helping others is more valuable than being perfect.",
-        "prompt": "A small friendly robot in a colorful town tries to become perfect, but eventually learns that helping people matters more than perfection.",
+        "prompt": "A small friendly robot in a colorful town tries to become perfect, but learns that helping people matters more than perfection.",
         "style": "3D",
         "narrator": "Story Guide",
+        "mood": "hope",
+        "story": """Pip was the smallest robot in Brightwood.
+
+Every morning, the town's other robots completed their tasks perfectly. One painted straight lines. Another sorted every package without a mistake. Pip wanted to be perfect too.
+
+He practiced polishing windows until they shone like mirrors.
+
+He practiced carrying boxes without dropping a single one.
+
+Then, one windy afternoon, a little girl named Nia ran into the square.
+
+“My kite is stuck!” she cried.
+
+Pip looked at the tall clock tower. The other robots calculated the safest route, but none of them could reach the kite because a narrow maintenance path had been blocked by fallen branches.
+
+Pip was small enough to squeeze through.
+
+He climbed carefully, moved the branches one by one, and reached the kite.
+
+But on the way down, he slipped.
+
+His paint became scratched.
+
+His perfect record was ruined.
+
+Pip expected everyone to laugh.
+
+Instead, Nia hugged him.
+
+“You helped me,” she said. “That's more important than being perfect.”
+
+The next morning, Pip noticed something unusual. The town's robots were still doing their jobs, but now they were helping one another between tasks.
+
+Pip smiled.
+
+He finally understood that a useful robot was not the one that never made mistakes.
+
+It was the one that noticed when someone needed help.""",
+        "characters": [
+            {
+                "name": "Pip",
+                "description": "A tiny friendly rounded robot with white metal panels, a blue chest light, expressive digital eyes and small wheels."
+            },
+            {
+                "name": "Nia",
+                "description": "A cheerful young girl with curly dark hair, a red hoodie and a bright yellow kite."
+            },
+        ],
+        "scenes": [
+            {
+                "title": "Pip Practices",
+                "visual_prompt": "Pip, a tiny friendly rounded robot with white metal panels, blue chest light and expressive digital eyes, carefully polishing a shop window in a colorful small town, cheerful morning, polished 3D children's animation style."
+            },
+            {
+                "title": "The Lost Kite",
+                "visual_prompt": "Nia, a cheerful young girl with curly dark hair and red hoodie, points toward a bright yellow kite trapped high on a clock tower, Pip standing beside her ready to help, colorful town square, afternoon light."
+            },
+            {
+                "title": "The Brave Climb",
+                "visual_prompt": "Tiny robot Pip squeezes through branches on a narrow clock tower maintenance path while reaching toward Nia's yellow kite, wind moving the branches, dynamic but friendly children's animation scene."
+            },
+            {
+                "title": "More Than Perfect",
+                "visual_prompt": "Nia hugs Pip in the town square after the rescue, Pip has a few harmless scratches on his white metal panels, townspeople and friendly robots smiling in the background, warm sunset, emotional 3D storybook composition."
+            },
+        ],
     },
     {
         "id": "forest_friend",
@@ -112,198 +292,320 @@ STARTER_STORIES = [
         "prompt": "A curious child enters a magical forest and meets a gentle creature who needs help finding its way home.",
         "style": "Illustrated",
         "narrator": "Sofia",
+        "mood": "wonder",
+        "story": """Arun loved exploring the forest behind his village.
+
+One morning, he followed a trail of glowing blue leaves deeper than he had ever gone. The trees became taller, the air became cooler, and tiny lights floated between the branches.
+
+Then he heard a quiet sneeze.
+
+Behind a mossy stone was a small creature with silver fur, leaf-shaped ears and bright green eyes.
+
+“I am Luma,” the creature said.
+
+Arun had never heard a forest creature speak.
+
+Luma had become lost after a storm and could not find the Moonflower Clearing where her family lived.
+
+Arun offered to help.
+
+They followed streams, crossed a fallen tree, and climbed a hill where the whole forest looked like a green ocean.
+
+At sunset, Luma noticed three stars appearing above the tallest tree.
+
+“That is the way home,” she said.
+
+But Arun was not sure.
+
+The forest paths all looked the same.
+
+Then he remembered the glowing blue leaves. They were brighter near water.
+
+Arun followed them to a hidden stream. Across the stream was a field of enormous white flowers glowing beneath the moon.
+
+Luma's family was waiting.
+
+Before leaving, Luma gave Arun one silver leaf.
+
+“Whenever you feel lost,” she said, “remember that a path can appear when you help someone else find theirs.”
+
+Arun returned home carrying the leaf.
+
+The next morning, the forest looked completely ordinary.
+
+But sometimes, when the wind moved through the trees, he heard Luma laughing.""",
+        "characters": [
+            {
+                "name": "Arun",
+                "description": "A curious 11-year-old child with short dark hair, green shirt, brown shorts and a small explorer satchel."
+            },
+            {
+                "name": "Luma",
+                "description": "A gentle small forest creature with soft silver fur, leaf-shaped ears, bright green eyes and a glowing silver tail."
+            },
+        ],
+        "scenes": [
+            {
+                "title": "The Blue Trail",
+                "visual_prompt": "Arun, an 11-year-old curious child with short dark hair, green shirt, brown shorts and explorer satchel, follows glowing blue leaves into a magical forest, tall trees and floating lights, enchanting illustrated storybook style."
+            },
+            {
+                "title": "Meeting Luma",
+                "visual_prompt": "Arun kneels beside a mossy stone and meets Luma, a small gentle creature with silver fur, leaf-shaped ears, bright green eyes and glowing silver tail, shafts of forest light, friendly magical atmosphere."
+            },
+            {
+                "title": "Across the Forest",
+                "visual_prompt": "Arun and Luma carefully cross a fallen tree above a sparkling stream, giant trees and tiny floating lights surrounding them, adventurous but gentle children's illustration."
+            },
+            {
+                "title": "The Moonflower Clearing",
+                "visual_prompt": "Under a full moon, Arun and Luma arrive at a clearing filled with enormous glowing white moonflowers while Luma's family waits nearby, magical forest night, luminous blue-green atmosphere."
+            },
+        ],
     },
 ]
 
-# -----------------------------
-# Session state
-# -----------------------------
+
+# ============================================================
+# SESSION STATE
+# ============================================================
+
 DEFAULTS = {
-    "history": [],
     "stories": {},
     "image_cache": {},
     "audio_cache": {},
+    "text_cache": {},
+    "history": [],
     "language": "English",
     "art_style": "Illustrated",
     "narrator": "Story Guide",
     "generate_images": True,
     "current_story_id": None,
     "pending_story": None,
+    "view": "Library",
+    "selected_scene": 0,
     "last_error": None,
+    "generation_meta": {},
 }
 
 for key, value in DEFAULTS.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
-for item in STARTER_STORIES:
-    st.session_state.stories.setdefault(item["id"], item)
+for starter in STARTER_STORIES:
+    st.session_state.stories.setdefault(starter["id"], starter)
 
 
 # ============================================================
-# Clean enterprise UI
+# UI CSS
 # ============================================================
+
 st.markdown(
     """
 <style>
 :root {
-    --blue: #1769e0;
-    --blue-dark: #123f82;
-    --blue-soft: #eef5ff;
-    --text: #182235;
-    --muted: #64748b;
-    --border: #dbe4f0;
-    --surface: #ffffff;
-    --surface-soft: #f7faff;
-    --green: #15803d;
+    --blue:#2563eb;
+    --blue-dark:#123f82;
+    --blue-soft:#eff6ff;
+    --text:#0f172a;
+    --muted:#64748b;
+    --line:#dbe4f0;
+    --page:#f5f8fc;
+    --card:#ffffff;
 }
 
-.stApp {
-    background: #f5f8fc;
-    color: var(--text);
-}
+.stApp { background:var(--page); color:var(--text); }
 
 .block-container {
-    max-width: 1240px;
-    padding-top: 1.5rem;
-    padding-bottom: 4rem;
+    max-width:1280px;
+    padding:1.3rem 2rem 4rem;
+}
+
+h1,h2,h3,h4 { color:var(--text)!important; letter-spacing:-.025em; }
+
+[data-testid="stSidebar"] {
+    background:#fff;
+    border-right:1px solid var(--line);
+}
+
+[data-testid="stSidebar"] .block-container { padding:1.2rem; }
+
+.brand {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-weight:800;
+    color:var(--blue-dark);
+}
+
+.brand-mark {
+    width:35px;height:35px;
+    display:grid;place-items:center;
+    border-radius:10px;
+    background:var(--blue);
+    color:#fff;
+    font-weight:900;
+    box-shadow:0 7px 20px rgba(37,99,235,.22);
+}
+
+.topbar {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:10px 0 20px;
 }
 
 .hero {
-    background: linear-gradient(135deg, #ffffff 0%, #eef5ff 100%);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 28px 30px;
-    margin-bottom: 20px;
-    box-shadow: 0 8px 30px rgba(28, 67, 115, 0.07);
+    background:
+        radial-gradient(circle at 90% 10%,rgba(37,99,235,.14),transparent 30%),
+        linear-gradient(135deg,#fff,#eef5ff);
+    border:1px solid var(--line);
+    border-radius:22px;
+    padding:38px;
+    margin-bottom:20px;
+    box-shadow:0 12px 40px rgba(15,23,42,.06);
+}
+
+.eyebrow {
+    display:inline-block;
+    padding:6px 10px;
+    border-radius:999px;
+    background:var(--blue-soft);
+    border:1px solid #dbeafe;
+    color:#1d4ed8;
+    font-size:.75rem;
+    font-weight:800;
 }
 
 .hero-title {
-    color: #123f82;
-    font-size: 2.25rem;
-    font-weight: 800;
-    letter-spacing: -0.04em;
+    font-size:2.65rem;
+    line-height:1.06;
+    font-weight:850;
+    letter-spacing:-.05em;
+    color:#102d5c;
+    margin-top:14px;
 }
 
-.hero-subtitle {
-    color: var(--muted);
-    margin-top: 6px;
+.hero-copy {
+    max-width:720px;
+    color:var(--muted);
+    line-height:1.65;
+    font-size:1rem;
+    margin-top:13px;
 }
 
-.product-card {
-    background: white;
-    border: 1px solid var(--border);
-    border-radius: 15px;
-    padding: 18px;
-    box-shadow: 0 5px 20px rgba(28, 67, 115, 0.05);
+.pills { display:flex; gap:8px; flex-wrap:wrap; margin-top:20px; }
+.pill {
+    padding:6px 10px;
+    border:1px solid var(--line);
+    background:#fff;
+    border-radius:999px;
+    color:#475569;
+    font-size:.75rem;
 }
 
-.story-card {
-    background: white;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 26px;
-    line-height: 1.75;
-    box-shadow: 0 7px 25px rgba(28, 67, 115, 0.05);
+.card,.story-tile,.reader,.character,.metric,.pipeline {
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:16px;
+    box-shadow:0 6px 24px rgba(15,23,42,.045);
 }
 
-.scene-header {
-    color: var(--blue);
-    font-weight: 750;
-    font-size: 0.86rem;
-    margin-bottom: 4px;
+.card { padding:20px; }
+.story-tile { padding:18px; min-height:160px; }
+.reader { padding:32px; }
+.character { padding:20px; text-align:center; }
+.metric { padding:14px; }
+.pipeline { padding:15px; }
+
+.story-icon {
+    width:42px;height:42px;
+    display:grid;place-items:center;
+    border-radius:12px;
+    background:var(--blue-soft);
+    margin-bottom:12px;
 }
 
-.character-card {
-    background: #f8fbff;
-    border: 1px solid #cfe0f7;
-    border-radius: 16px;
-    padding: 18px;
-    text-align: center;
+.story-title { font-weight:800; color:var(--text); }
+.story-description { color:var(--muted); font-size:.82rem; line-height:1.5; margin-top:5px; }
+
+.reader-title { font-size:2rem; font-weight:850; color:var(--blue-dark); }
+.reader-copy { margin-top:18px; color:#334155; line-height:1.95; font-size:1.04rem; white-space:pre-line; }
+
+.avatar {
+    width:78px;height:78px;
+    display:grid;place-items:center;
+    margin:0 auto 12px;
+    border-radius:50%;
+    background:#eaf2ff;
+    font-size:36px;
 }
 
-.character-avatar {
-    font-size: 3.5rem;
-    line-height: 1;
-    margin-bottom: 8px;
+.character-name { font-weight:800; color:var(--blue-dark); }
+.character-role { color:var(--muted); font-size:.8rem; margin-top:4px; }
+
+.metric-number { font-size:1.35rem; font-weight:850; color:var(--blue-dark); }
+.metric-label { color:var(--muted); font-size:.75rem; }
+
+.scene-label {
+    color:var(--blue);
+    font-weight:800;
+    font-size:.78rem;
+    text-transform:uppercase;
+    letter-spacing:.05em;
 }
 
-.character-name {
-    color: #123f82;
-    font-weight: 750;
+.scene-card {
+    padding:18px;
+    border:1px solid var(--line);
+    border-radius:15px;
+    background:#fff;
+    margin-bottom:14px;
 }
 
-.character-status {
-    color: var(--muted);
-    font-size: 0.85rem;
+.pipeline-step {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    color:#475569;
+    font-size:.82rem;
 }
 
-.metric {
-    background: white;
-    border: 1px solid var(--border);
-    border-radius: 13px;
-    padding: 13px;
-    text-align: center;
+.pipeline-dot {
+    width:27px;height:27px;
+    border-radius:50%;
+    display:grid;place-items:center;
+    background:var(--blue-soft);
+    color:var(--blue);
+    font-weight:800;
 }
 
-.metric-value {
-    color: #123f82;
-    font-size: 1.3rem;
-    font-weight: 800;
-}
-
-.metric-label {
-    color: var(--muted);
-    font-size: 0.75rem;
+.stButton > button,
+.stFormSubmitButton > button {
+    min-height:42px;
+    border-radius:10px!important;
+    font-weight:700!important;
 }
 
 div[data-baseweb="input"] > div,
 div[data-baseweb="textarea"] > div,
 div[data-baseweb="select"] > div {
-    background: white !important;
-    border-color: var(--border) !important;
-    border-radius: 10px !important;
+    background:#fff!important;
+    border-color:var(--line)!important;
+    border-radius:10px!important;
 }
 
-div[data-baseweb="input"]:focus-within > div,
-div[data-baseweb="textarea"]:focus-within > div,
-div[data-baseweb="select"]:focus-within > div {
-    border-color: var(--blue) !important;
-    box-shadow: 0 0 0 2px rgba(23, 105, 224, .10) !important;
+hr { border-color:var(--line); }
+
+audio { width:100%; }
+
+.small-note {
+    color:var(--muted);
+    font-size:.78rem;
 }
 
-.stButton > button,
-.stFormSubmitButton > button {
-    border-radius: 9px !important;
-    min-height: 40px;
-    border: 1px solid #c8d8ee !important;
-    background: white !important;
-    color: #174a8b !important;
-    font-weight: 650 !important;
-}
-
-.stButton > button:hover,
-.stFormSubmitButton > button:hover {
-    border-color: var(--blue) !important;
-    background: var(--blue-soft) !important;
-}
-
-[data-testid="stSidebar"] {
-    background: #ffffff;
-    border-right: 1px solid var(--border);
-}
-
-.stChatMessage {
-    border-radius: 14px;
-}
-
-audio {
-    width: 100%;
-}
-
-hr {
-    border-color: var(--border);
-}
+.status-ok { color:#15803d; font-weight:750; }
+.status-warn { color:#b45309; font-weight:750; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -311,11 +613,8 @@ hr {
 
 
 # ============================================================
-# Core helpers
+# CORE UTILITIES
 # ============================================================
-def get_client() -> Optional[Groq]:
-    return Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
-
 
 def clean_prompt(value: str) -> str:
     value = re.sub(r"\s+", " ", (value or "").strip())
@@ -323,12 +622,18 @@ def clean_prompt(value: str) -> str:
 
 
 def stable_hash(*parts: str) -> str:
-    return hashlib.sha256("||".join(parts).encode()).hexdigest()[:24]
+    payload = "||".join(str(x) for x in parts)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:24]
 
 
 def safe_error(exc: Exception) -> str:
     text = str(exc).strip()
-    return text[:500] if text else "Unexpected error."
+    text = re.sub(r"gsk_[A-Za-z0-9_-]+", "[REDACTED]", text)
+    return text[:600] or "Unexpected error."
+
+
+def safe_html(value: Any) -> str:
+    return html.escape(str(value or ""))
 
 
 def extract_json(raw: str) -> Dict[str, Any]:
@@ -343,120 +648,610 @@ def extract_json(raw: str) -> Dict[str, Any]:
     except json.JSONDecodeError:
         pass
 
-    match = re.search(r"\{.*\}", raw, re.DOTALL)
-    if not match:
-        raise ValueError("AI returned invalid structured data.")
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start >= 0 and end > start:
+        value = json.loads(raw[start:end + 1])
+        if isinstance(value, dict):
+            return value
 
-    value = json.loads(match.group(0))
-    if not isinstance(value, dict):
-        raise ValueError("AI response was not an object.")
-    return value
+    raise ValueError("AI returned invalid structured data.")
 
 
-def normalize_story_result(data: Dict[str, Any]) -> Dict[str, Any]:
-    story = str(data.get("story", "")).strip()
-    scenes = data.get("scenes", [])
+def provider_status() -> str:
+    if LLM_PROVIDER == "groq":
+        return "Groq"
+    if LLM_PROVIDER == "ollama":
+        return "Ollama"
+    if GROQ_API_KEY:
+        return "Groq"
+    if ollama_chat:
+        return "Ollama"
+    return "Unavailable"
 
-    if not story:
-        raise ValueError("The story response was empty.")
 
-    normalized_scenes = []
-    if isinstance(scenes, list):
-        for item in scenes:
-            if isinstance(item, dict):
-                prompt = str(item.get("visual_prompt", "")).strip()
-                if prompt:
-                    normalized_scenes.append({
-                        "title": str(item.get("title", "Scene")).strip(),
-                        "visual_prompt": prompt[:500],
-                    })
+def get_groq_client() -> Optional[Any]:
+    if not GROQ_API_KEY or Groq is None:
+        return None
+    return Groq(api_key=GROQ_API_KEY)
 
-    # Fallback if the model omitted the scene array.
-    if not normalized_scenes:
-        for idx, prompt in enumerate(
-            re.findall(r"\[SCENE:\s*(.*?)\]", story, flags=re.DOTALL),
-            start=1,
-        ):
-            normalized_scenes.append({
-                "title": f"Scene {idx}",
-                "visual_prompt": prompt.strip()[:500],
-            })
 
-    clean_story = re.sub(
-        r"\[SCENE:\s*(.*?)\]",
-        "",
-        story,
-        flags=re.DOTALL,
-    )
-    clean_story = re.sub(r"\n{3,}", "\n\n", clean_story).strip()
-
+def schema_response_format(name: str, schema: Dict[str, Any]) -> Dict[str, Any]:
     return {
-        "story": clean_story[:MAX_STORY_CHARS],
-        "scenes": normalized_scenes[:8],
-        "title": str(data.get("title", "Untitled Story")).strip()[:120],
-        "mood": str(data.get("mood", "warm")).strip()[:50],
+        "type": "json_schema",
+        "json_schema": {
+            "name": name,
+            "strict": True,
+            "schema": schema,
+        },
     }
 
 
 # ============================================================
-# Story service
+# STRUCTURED SCHEMAS
 # ============================================================
-def generate_story(prompt: str, language: str, narrator: str) -> Dict[str, Any]:
-    client = get_client()
+
+STORY_BIBLE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "title": {"type": "string"},
+        "logline": {"type": "string"},
+        "theme": {"type": "string"},
+        "tone": {"type": "string"},
+        "setting": {"type": "string"},
+        "characters": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "role": {"type": "string"},
+                    "description": {"type": "string"},
+                    "goal": {"type": "string"},
+                    "visual_identity": {"type": "string"},
+                },
+                "required": ["name", "role", "description", "goal", "visual_identity"],
+                "additionalProperties": False,
+            },
+        },
+        "conflict": {"type": "string"},
+        "resolution": {"type": "string"},
+    },
+    "required": [
+        "title", "logline", "theme", "tone", "setting",
+        "characters", "conflict", "resolution"
+    ],
+    "additionalProperties": False,
+}
+
+OUTLINE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "beats": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "beat": {"type": "integer"},
+                    "title": {"type": "string"},
+                    "purpose": {"type": "string"},
+                    "events": {"type": "array", "items": {"type": "string"}},
+                    "emotion": {"type": "string"},
+                },
+                "required": ["beat", "title", "purpose", "events", "emotion"],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["beats"],
+    "additionalProperties": False,
+}
+
+DRAFT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "story": {"type": "string"},
+        "ending": {"type": "string"},
+    },
+    "required": ["story", "ending"],
+    "additionalProperties": False,
+}
+
+EDIT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "story": {"type": "string"},
+        "editor_notes": {"type": "array", "items": {"type": "string"}},
+        "quality_score": {"type": "integer"},
+    },
+    "required": ["story", "editor_notes", "quality_score"],
+    "additionalProperties": False,
+}
+
+SCENES_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "scenes": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string"},
+                    "story_excerpt": {"type": "string"},
+                    "visual_prompt": {"type": "string"},
+                    "characters": {"type": "array", "items": {"type": "string"}},
+                    "location": {"type": "string"},
+                    "time_of_day": {"type": "string"},
+                    "camera": {"type": "string"},
+                },
+                "required": [
+                    "title", "story_excerpt", "visual_prompt",
+                    "characters", "location", "time_of_day", "camera"
+                ],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["scenes"],
+    "additionalProperties": False,
+}
+
+
+# ============================================================
+# LLM PROVIDER LAYER
+# ============================================================
+
+def call_groq_json(
+    *,
+    system: str,
+    user: str,
+    schema_name: str,
+    schema: Dict[str, Any],
+    temperature: float = 0.35,
+    max_tokens: int = 5000,
+) -> Dict[str, Any]:
+    client = get_groq_client()
     if not client:
-        raise RuntimeError("GROQ_API_KEY is not configured.")
-
-    narrator_description = NARRATORS[narrator]["description"]
-
-    system_prompt = f"""
-You are Story Studio's professional story generation service.
-
-Create a complete, coherent story for the user.
-
-Language: {language}
-Narrator style: {narrator_description}
-
-Return ONLY valid JSON:
-{{
-  "title": "short story title",
-  "mood": "one-word mood",
-  "story": "complete story text",
-  "scenes": [
-    {{
-      "title": "short scene title",
-      "visual_prompt": "detailed description of what should appear in the illustration"
-    }}
-  ]
-}}
-
-Rules:
-- 500–1800 words depending on the request.
-- Use clear paragraphs.
-- Create 2–6 scenes.
-- Visual prompts must describe visible characters, setting, action, lighting and composition.
-- Keep the same characters visually consistent across scenes.
-- Never place text, subtitles, logos or watermarks inside image prompts.
-- Do not return markdown or code fences.
-"""
+        raise RuntimeError("Groq is not configured.")
 
     response = client.chat.completions.create(
         model=GROQ_MODEL,
         messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": clean_prompt(prompt)},
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
         ],
+        temperature=temperature,
+        max_tokens=max_tokens,
+        response_format=schema_response_format(schema_name, schema),
+    )
+    return extract_json(response.choices[0].message.content)
+
+
+def call_groq_json_fallback(
+    *,
+    system: str,
+    user: str,
+    temperature: float = 0.35,
+    max_tokens: int = 5000,
+) -> Dict[str, Any]:
+    """Fallback for older Groq models that do not support strict schemas."""
+    client = get_groq_client()
+    if not client:
+        raise RuntimeError("Groq is not configured.")
+
+    response = client.chat.completions.create(
+        model=GROQ_MODEL,
+        messages=[
+            {"role": "system", "content": system + "\nReturn ONLY valid JSON."},
+            {"role": "user", "content": user},
+        ],
+        temperature=temperature,
+        max_tokens=max_tokens,
+        response_format={"type": "json_object"},
+    )
+    return extract_json(response.choices[0].message.content)
+
+
+def call_ollama_json(
+    *,
+    system: str,
+    user: str,
+    schema: Dict[str, Any],
+    temperature: float = 0.35,
+) -> Dict[str, Any]:
+    if ollama_chat is None:
+        raise RuntimeError(
+            "Ollama Python package is not installed. Install 'ollama' "
+            "or configure Groq in .env."
+        )
+
+    response = ollama_chat(
+        model=OLLAMA_MODEL,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        format=schema,
+        options={"temperature": temperature},
+    )
+
+    content = getattr(getattr(response, "message", None), "content", None)
+    if not content:
+        raise RuntimeError("Ollama returned an empty response.")
+    return extract_json(content)
+
+
+def llm_json(
+    *,
+    system: str,
+    user: str,
+    schema_name: str,
+    schema: Dict[str, Any],
+    temperature: float = 0.35,
+    max_tokens: int = 5000,
+) -> Dict[str, Any]:
+    """
+    Provider strategy:
+      groq   -> Groq only
+      ollama -> Ollama only
+      auto   -> Groq when key exists, otherwise Ollama
+    """
+    provider = LLM_PROVIDER
+
+    if provider == "groq":
+        try:
+            return call_groq_json(
+                system=system,
+                user=user,
+                schema_name=schema_name,
+                schema=schema,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+        except Exception as first_error:
+            # A controlled compatibility fallback for models where strict
+            # structured output is unavailable.
+            try:
+                return call_groq_json_fallback(
+                    system=system,
+                    user=user,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+            except Exception:
+                raise first_error
+
+    if provider == "ollama":
+        return call_ollama_json(
+            system=system,
+            user=user,
+            schema=schema,
+            temperature=temperature,
+        )
+
+    # auto
+    if GROQ_API_KEY and Groq is not None:
+        try:
+            return call_groq_json(
+                system=system,
+                user=user,
+                schema_name=schema_name,
+                schema=schema,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+        except Exception:
+            try:
+                return call_groq_json_fallback(
+                    system=system,
+                    user=user,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+            except Exception:
+                pass
+
+    if ollama_chat is not None:
+        return call_ollama_json(
+            system=system,
+            user=user,
+            schema=schema,
+            temperature=temperature,
+        )
+
+    raise RuntimeError(
+        "No AI provider is available. Add GROQ_API_KEY to .env "
+        "or install/configure Ollama."
+    )
+
+
+# ============================================================
+# STORY PIPELINE
+# ============================================================
+
+def build_story_bible(prompt: str, language: str) -> Dict[str, Any]:
+    system = f"""
+You are the story architect for an enterprise AI storytelling platform.
+
+Language: {language}
+
+Transform the user's idea into a coherent story bible.
+
+Quality requirements:
+- Define a protagonist with a concrete goal.
+- Define a meaningful but age-appropriate conflict.
+- Create a clear emotional arc.
+- Make the setting visually specific.
+- Give every major character a stable visual identity.
+- Avoid random character changes later.
+- Prefer original, family-friendly concepts.
+- Keep the theme understandable without preaching.
+"""
+    return llm_json(
+        system=system,
+        user=clean_prompt(prompt),
+        schema_name="story_bible",
+        schema=STORY_BIBLE_SCHEMA,
+        temperature=0.3,
+        max_tokens=2500,
+    )
+
+
+def build_outline(bible: Dict[str, Any], language: str) -> Dict[str, Any]:
+    system = f"""
+You are a professional narrative planner.
+
+Language: {language}
+
+Build a compact beginning-middle-ending story outline from the story bible.
+
+The outline must:
+- Start with a strong hook.
+- Establish the protagonist and goal.
+- Escalate the conflict.
+- Include a meaningful turning point.
+- Resolve the central problem.
+- End with emotional closure.
+- Preserve character motivations and visual identity.
+
+Return only the requested structured data.
+"""
+    return llm_json(
+        system=system,
+        user=json.dumps(bible, ensure_ascii=False),
+        schema_name="story_outline",
+        schema=OUTLINE_SCHEMA,
+        temperature=0.35,
+        max_tokens=3000,
+    )
+
+
+def draft_story(
+    bible: Dict[str, Any],
+    outline: Dict[str, Any],
+    language: str,
+    narrator: str,
+) -> Dict[str, Any]:
+    narrator_style = NARRATORS[narrator]["description"]
+
+    system = f"""
+You are the lead children's/family storyteller for Story Studio.
+
+Language: {language}
+Narrator style: {narrator_style}
+
+Write a polished original story from the supplied story bible and outline.
+
+Writing requirements:
+- 700-1800 words unless the story clearly needs less.
+- Strong opening hook.
+- Natural dialogue where useful.
+- Show emotion through actions and sensory details.
+- Keep character names and traits consistent.
+- Do not introduce unexplained major characters.
+- Avoid repetitive phrasing.
+- Give the protagonist agency.
+- Make the ending earned by earlier events.
+- No markdown headings, scene labels, or meta commentary.
+"""
+    user = (
+        "STORY BIBLE:\n"
+        + json.dumps(bible, ensure_ascii=False)
+        + "\n\nOUTLINE:\n"
+        + json.dumps(outline, ensure_ascii=False)
+    )
+
+    return llm_json(
+        system=system,
+        user=user,
+        schema_name="story_draft",
+        schema=DRAFT_SCHEMA,
         temperature=0.72,
-        max_tokens=5000,
-    )
-
-    return normalize_story_result(
-        extract_json(response.choices[0].message.content)
+        max_tokens=5500,
     )
 
 
+def edit_story(
+    bible: Dict[str, Any],
+    draft: Dict[str, Any],
+    language: str,
+) -> Dict[str, Any]:
+    system = f"""
+You are the senior story editor for a commercial storytelling product.
+
+Language: {language}
+
+Perform a silent editorial pass.
+
+Check:
+1. Character consistency.
+2. Cause and effect.
+3. Beginning, escalation and resolution.
+4. Emotional continuity.
+5. Age-appropriate language.
+6. Repetition.
+7. Awkward or confusing sentences.
+8. Unnecessary exposition.
+9. Whether the ending pays off the central theme.
+
+Return the improved complete story.
+Do not add meta commentary inside the story.
+"""
+    user = (
+        "BIBLE:\n"
+        + json.dumps(bible, ensure_ascii=False)
+        + "\n\nDRAFT:\n"
+        + draft.get("story", "")
+    )
+
+    result = llm_json(
+        system=system,
+        user=user,
+        schema_name="story_editor",
+        schema=EDIT_SCHEMA,
+        temperature=0.18,
+        max_tokens=6000,
+    )
+
+    result["story"] = str(result.get("story", "")).strip()
+    result["quality_score"] = max(0, min(100, int(result.get("quality_score", 80))))
+    return result
+
+
+def plan_scenes(
+    bible: Dict[str, Any],
+    story: str,
+    style_name: str,
+) -> Dict[str, Any]:
+    style = ART_STYLES.get(style_name, ART_STYLES["Illustrated"])
+
+    system = f"""
+You are the visual director for a story illustration engine.
+
+Preferred visual style:
+{style}
+
+Create 3-{MAX_SCENES} visually distinct scenes from the story.
+
+Hard requirements:
+- Character appearance must exactly follow the story bible.
+- Repeat stable visual traits in every scene where the character appears.
+- Each visual prompt must describe subject, action, setting, lighting and composition.
+- No text, captions, logos, watermarks or UI elements.
+- Avoid vague prompts.
+- Scene excerpts must correspond to real parts of the story.
+"""
+    user = (
+        "CHARACTER BIBLE:\n"
+        + json.dumps(bible.get("characters", []), ensure_ascii=False)
+        + "\n\nSETTING:\n"
+        + str(bible.get("setting", ""))
+        + "\n\nSTORY:\n"
+        + story
+    )
+
+    result = llm_json(
+        system=system,
+        user=user,
+        schema_name="scene_plan",
+        schema=SCENES_SCHEMA,
+        temperature=0.28,
+        max_tokens=4500,
+    )
+
+    scenes = result.get("scenes", [])
+    normalized: List[Dict[str, Any]] = []
+
+    for scene in scenes[:MAX_SCENES]:
+        if not isinstance(scene, dict):
+            continue
+        visual = str(scene.get("visual_prompt", "")).strip()
+        if not visual:
+            continue
+
+        normalized.append({
+            "title": str(scene.get("title", "Scene")).strip()[:120],
+            "story_excerpt": str(scene.get("story_excerpt", "")).strip()[:600],
+            "visual_prompt": visual[:1200],
+            "characters": [
+                str(x)[:80] for x in scene.get("characters", [])
+                if str(x).strip()
+            ],
+            "location": str(scene.get("location", ""))[:160],
+            "time_of_day": str(scene.get("time_of_day", ""))[:80],
+            "camera": str(scene.get("camera", ""))[:160],
+        })
+
+    if not normalized:
+        raise ValueError("The visual planner returned no usable scenes.")
+
+    return {"scenes": normalized}
+
+
+def run_story_pipeline(
+    prompt: str,
+    language: str,
+    narrator: str,
+    art_style: str,
+) -> Dict[str, Any]:
+    """
+    Full quality pipeline. The stages are intentionally separate so each
+    result can later be persisted and evaluated independently.
+    """
+    clean = clean_prompt(prompt)
+    if not clean:
+        raise ValueError("Story idea cannot be empty.")
+
+    cache_key = stable_hash(clean, language, narrator, art_style, GROQ_MODEL, OLLAMA_MODEL)
+
+    if cache_key in st.session_state.text_cache:
+        return st.session_state.text_cache[cache_key]
+
+    bible = build_story_bible(clean, language)
+    outline = build_outline(bible, language)
+    draft = draft_story(bible, outline, language, narrator)
+    edited = edit_story(bible, draft, language)
+
+    story_text = str(edited.get("story", "")).strip()
+    if not story_text:
+        raise ValueError("Story editor returned empty content.")
+
+    scenes = plan_scenes(bible, story_text, art_style)
+
+    result = {
+        "title": str(bible.get("title", "Untitled Story")).strip()[:120],
+        "description": str(bible.get("logline", "")).strip()[:300],
+        "mood": str(bible.get("tone", "warm")).strip()[:60],
+        "story": story_text[:MAX_STORY_CHARS],
+        "characters": bible.get("characters", []),
+        "story_bible": bible,
+        "outline": outline,
+        "scenes": scenes["scenes"],
+        "editor_notes": edited.get("editor_notes", [])[:8],
+        "quality_score": int(edited.get("quality_score", 80)),
+        "prompt": clean,
+        "language": language,
+        "style": art_style,
+        "narrator": narrator,
+        "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "pipeline": [
+            "Brief",
+            "Story Bible",
+            "Outline",
+            "Draft",
+            "Continuity Edit",
+            "Scene Plan",
+        ],
+    }
+
+    st.session_state.text_cache[cache_key] = result
+    return result
+
+
 # ============================================================
-# Visual generation service
+# IMAGE SERVICE
 # ============================================================
+
 def fetch_image(scene_prompt: str, style_name: str) -> Optional[bytes]:
     key = stable_hash(scene_prompt, style_name)
 
@@ -464,15 +1259,16 @@ def fetch_image(scene_prompt: str, style_name: str) -> Optional[bytes]:
         return st.session_state.image_cache[key]
 
     style = ART_STYLES.get(style_name, ART_STYLES["Illustrated"])
-
     prompt = (
-        f"{scene_prompt}. {style}. "
-        "Professional composition, consistent character appearance, "
-        "clean background separation, no text, no watermark."
+        f"{scene_prompt}. "
+        f"{style}. "
+        "Consistent character design, professional storybook composition, "
+        "clear subject separation, expressive faces, coherent environment, "
+        "no text, no captions, no logos, no watermark."
     )
 
-    encoded = urllib.parse.quote(prompt[:900])
-    seed = int(key[:8], 16) % 1000000
+    encoded = urllib.parse.quote(prompt[:1500])
+    seed = int(key[:8], 16) % 1_000_000
 
     url = (
         f"https://image.pollinations.ai/prompt/{encoded}"
@@ -483,7 +1279,7 @@ def fetch_image(scene_prompt: str, style_name: str) -> Optional[bytes]:
         try:
             response = requests.get(
                 url,
-                headers={"User-Agent": "StoryStudio/1.0"},
+                headers={"User-Agent": "StoryStudio/4.0"},
                 timeout=IMAGE_TIMEOUT,
             )
             if response.ok and response.content:
@@ -497,8 +1293,9 @@ def fetch_image(scene_prompt: str, style_name: str) -> Optional[bytes]:
 
 
 # ============================================================
-# Narration service
+# NARRATION SERVICE
 # ============================================================
+
 async def create_audio_file(text: str, voice: str, path: str):
     await edge_tts.Communicate(text, voice).save(path)
 
@@ -528,6 +1325,9 @@ def generate_audio(text: str, narrator: str) -> Optional[bytes]:
         with open(path, "rb") as audio:
             data = audio.read()
 
+        if not data:
+            raise RuntimeError("Narration provider returned an empty audio file.")
+
         st.session_state.audio_cache[key] = data
         return data
 
@@ -544,389 +1344,74 @@ def generate_audio(text: str, narrator: str) -> Optional[bytes]:
 
 
 # ============================================================
-# Story persistence inside the current session
+# STORY STORAGE / NAVIGATION
 # ============================================================
-def save_story(title: str, story_data: Dict[str, Any]) -> str:
-    story_id = stable_hash(title, story_data["story"], str(time.time()))
-    st.session_state.stories[story_id] = {
-        "id": story_id,
-        "title": title,
-        "description": story_data["story"][:180],
-        "prompt": "",
-        "story": story_data["story"],
-        "scenes": story_data["scenes"],
-        "mood": story_data.get("mood", "warm"),
-        "style": st.session_state.art_style,
-        "narrator": st.session_state.narrator,
-    }
-    return story_id
+
+def save_story(story_data: Dict[str, Any], story_id: Optional[str] = None) -> str:
+    sid = story_id or stable_hash(
+        story_data.get("title", "story"),
+        story_data.get("story", ""),
+        str(time.time()),
+    )
+
+    record = dict(story_data)
+    record["id"] = sid
+    record["description"] = (
+        record.get("description")
+        or record.get("story", "")[:180]
+    )[:300]
+
+    st.session_state.stories[sid] = record
+    return sid
 
 
-def load_story(story_id: str):
+def open_story(story_id: str) -> bool:
     story = st.session_state.stories.get(story_id)
-    if not story:
-        return
+    if not story or not story.get("story"):
+        return False
 
     st.session_state.current_story_id = story_id
-    if "story" in story:
-        st.session_state.pending_story = story
+    st.session_state.pending_story = story
+    st.session_state.selected_scene = 0
+    st.session_state.view = "Reader"
+    return True
 
+
+def create_story_from_starter(story_id: str) -> bool:
+    return open_story(story_id)
+
+
+def clear_workspace():
+    st.session_state.history = []
+    st.session_state.pending_story = None
+    st.session_state.current_story_id = None
+    st.session_state.view = "Library"
+    st.session_state.selected_scene = 0
+    st.session_state.last_error = None
 
 
 # ============================================================
-# ENTERPRISE PRODUCT SHELL
-# UI/UX direction:
-# - calm blue/white SaaS visual language
-# - clear hierarchy and fewer competing actions
-# - library-first information architecture
-# - prominent primary CTA
-# - separate "read", "create", and "manage" workflows
-# - narrator treated as a product character, not a technical widget
+# SIDEBAR
 # ============================================================
 
-st.markdown(
-    """
-<style>
-:root {
-    --brand: #2563eb;
-    --brand-dark: #1d4ed8;
-    --brand-50: #eff6ff;
-    --ink: #0f172a;
-    --ink-2: #334155;
-    --muted: #64748b;
-    --line: #e2e8f0;
-    --page: #f8fafc;
-    --card: #ffffff;
-    --success: #15803d;
-    --warning: #b45309;
-}
-
-/* ---------- App shell ---------- */
-.stApp {
-    background: var(--page);
-    color: var(--ink);
-}
-
-.block-container {
-    max-width: 1280px;
-    padding: 1.5rem 2rem 5rem;
-}
-
-header[data-testid="stHeader"] {
-    background: rgba(248,250,252,.92);
-}
-
-/* ---------- Typography ---------- */
-h1, h2, h3, h4 {
-    color: var(--ink) !important;
-    letter-spacing: -0.025em !important;
-}
-
-p, label, .stCaption {
-    color: var(--ink-2);
-}
-
-/* ---------- Top navigation ---------- */
-.topbar {
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:24px;
-    padding:12px 0 24px;
-}
-
-.brand {
-    display:flex;
-    align-items:center;
-    gap:11px;
-    font-weight:800;
-    color:#123b78;
-    font-size:1.05rem;
-}
-
-.brand-mark {
-    width:34px;
-    height:34px;
-    display:grid;
-    place-items:center;
-    border-radius:10px;
-    background:var(--brand);
-    color:white;
-    font-size:17px;
-    box-shadow:0 6px 18px rgba(37,99,235,.22);
-}
-
-.nav-note {
-    color:var(--muted);
-    font-size:.82rem;
-}
-
-/* ---------- Hero ---------- */
-.hero {
-    position:relative;
-    overflow:hidden;
-    background:
-        radial-gradient(circle at 90% 15%, rgba(37,99,235,.13), transparent 30%),
-        linear-gradient(135deg,#ffffff 0%,#f3f7ff 100%);
-    border:1px solid var(--line);
-    border-radius:22px;
-    padding:42px;
-    min-height:300px;
-    box-shadow:0 16px 45px rgba(15,23,42,.06);
-    margin-bottom:24px;
-}
-
-.hero-eyebrow {
-    display:inline-block;
-    color:var(--brand-dark);
-    background:var(--brand-50);
-    border:1px solid #dbeafe;
-    padding:6px 10px;
-    border-radius:999px;
-    font-size:.76rem;
-    font-weight:750;
-    margin-bottom:16px;
-}
-
-.hero-title {
-    max-width:720px;
-    color:#102d5c;
-    font-size:2.65rem;
-    line-height:1.08;
-    font-weight:850;
-    letter-spacing:-.045em;
-    margin:0;
-}
-
-.hero-copy {
-    max-width:650px;
-    color:var(--muted);
-    font-size:1.02rem;
-    line-height:1.65;
-    margin-top:14px;
-}
-
-.hero-meta {
-    display:flex;
-    gap:9px;
-    flex-wrap:wrap;
-    margin-top:22px;
-}
-
-.pill {
-    border:1px solid var(--line);
-    background:white;
-    color:#475569;
-    border-radius:999px;
-    padding:6px 10px;
-    font-size:.75rem;
-}
-
-/* ---------- Cards ---------- */
-.card {
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:16px;
-    padding:20px;
-    box-shadow:0 7px 24px rgba(15,23,42,.045);
-}
-
-.card-title {
-    color:var(--ink);
-    font-weight:760;
-    font-size:1rem;
-}
-
-.card-subtitle {
-    color:var(--muted);
-    font-size:.84rem;
-    margin-top:4px;
-}
-
-.section-head {
-    display:flex;
-    justify-content:space-between;
-    align-items:end;
-    margin:30px 0 13px;
-}
-
-.section-title {
-    font-size:1.28rem;
-    font-weight:800;
-    color:var(--ink);
-}
-
-.section-note {
-    color:var(--muted);
-    font-size:.82rem;
-}
-
-/* ---------- Story cards ---------- */
-.story-tile {
-    background:white;
-    border:1px solid var(--line);
-    border-radius:15px;
-    padding:17px;
-    min-height:150px;
-    box-shadow:0 5px 20px rgba(15,23,42,.035);
-}
-
-.story-icon {
-    width:40px;
-    height:40px;
-    display:grid;
-    place-items:center;
-    border-radius:11px;
-    background:var(--brand-50);
-    margin-bottom:13px;
-    font-size:19px;
-}
-
-.story-title {
-    font-weight:780;
-    color:var(--ink);
-    margin-bottom:5px;
-}
-
-.story-description {
-    color:var(--muted);
-    font-size:.82rem;
-    line-height:1.5;
-}
-
-/* ---------- Reader ---------- */
-.reader {
-    background:white;
-    border:1px solid var(--line);
-    border-radius:18px;
-    padding:32px;
-    box-shadow:0 8px 28px rgba(15,23,42,.05);
-}
-
-.reader-title {
-    font-size:1.85rem;
-    font-weight:820;
-    color:#123b78;
-    margin-bottom:15px;
-}
-
-.reader-copy {
-    color:#334155;
-    line-height:1.9;
-    font-size:1.03rem;
-}
-
-/* ---------- Character ---------- */
-.character {
-    background:linear-gradient(180deg,#ffffff,#f6f9ff);
-    border:1px solid #dbe7f7;
-    border-radius:17px;
-    padding:21px;
-    text-align:center;
-}
-
-.avatar {
-    width:74px;
-    height:74px;
-    margin:0 auto 12px;
-    display:grid;
-    place-items:center;
-    border-radius:50%;
-    background:#eaf2ff;
-    font-size:34px;
-}
-
-.character-name {
-    font-weight:800;
-    color:#123b78;
-}
-
-.character-role {
-    color:var(--muted);
-    font-size:.8rem;
-    margin-top:3px;
-}
-
-/* ---------- Metrics ---------- */
-.metric {
-    background:white;
-    border:1px solid var(--line);
-    border-radius:14px;
-    padding:15px;
-}
-
-.metric-number {
-    font-size:1.35rem;
-    color:#123b78;
-    font-weight:820;
-}
-
-.metric-label {
-    font-size:.75rem;
-    color:var(--muted);
-    margin-top:2px;
-}
-
-/* ---------- Controls ---------- */
-div[data-baseweb="input"] > div,
-div[data-baseweb="textarea"] > div,
-div[data-baseweb="select"] > div {
-    background:#fff !important;
-    border-color:var(--line) !important;
-    border-radius:10px !important;
-}
-
-div[data-baseweb="input"]:focus-within > div,
-div[data-baseweb="textarea"]:focus-within > div,
-div[data-baseweb="select"]:focus-within > div {
-    border-color:var(--brand) !important;
-    box-shadow:0 0 0 2px rgba(37,99,235,.10) !important;
-}
-
-.stButton > button,
-.stFormSubmitButton > button {
-    min-height:42px;
-    border-radius:9px !important;
-    border:1px solid #cbd5e1 !important;
-    background:white !important;
-    color:#1e4f91 !important;
-    font-weight:680 !important;
-}
-
-.stButton > button:hover,
-.stFormSubmitButton > button:hover {
-    border-color:var(--brand) !important;
-    background:var(--brand-50) !important;
-}
-
-[data-testid="stSidebar"] {
-    background:#fff;
-    border-right:1px solid var(--line);
-}
-
-[data-testid="stSidebar"] .block-container {
-    padding:1.25rem;
-}
-
-audio {
-    width:100%;
-}
-
-hr {
-    border-color:var(--line);
-}
-</style>
-""",
-    unsafe_allow_html=True,
-)
-
-# ---------- Sidebar: settings, not navigation clutter ----------
 with st.sidebar:
     st.markdown(
         '<div class="brand"><div class="brand-mark">S</div> Story Studio</div>',
         unsafe_allow_html=True,
     )
-    st.caption("Professional AI storytelling workspace")
+    st.caption(f"Enterprise Storytelling · v{APP_VERSION}")
+
+    st.markdown("---")
+    st.markdown("#### Workspace")
+
+    nav = st.radio(
+        "Navigate",
+        ["Library", "Create", "Reader"],
+        index=["Library", "Create", "Reader"].index(st.session_state.view),
+        label_visibility="collapsed",
+    )
+    if nav != st.session_state.view:
+        st.session_state.view = nav
 
     st.markdown("---")
     st.markdown("#### Creation settings")
@@ -939,14 +1424,14 @@ with st.sidebar:
 
     st.session_state.art_style = st.selectbox(
         "Illustration style",
-        list(ART_STYLES),
-        index=list(ART_STYLES).index(st.session_state.art_style),
+        list(ART_STYLES.keys()),
+        index=list(ART_STYLES.keys()).index(st.session_state.art_style),
     )
 
     st.session_state.narrator = st.selectbox(
         "Narrator",
-        list(NARRATORS),
-        index=list(NARRATORS).index(st.session_state.narrator),
+        list(NARRATORS.keys()),
+        index=list(NARRATORS.keys()).index(st.session_state.narrator),
     )
 
     st.session_state.generate_images = st.toggle(
@@ -954,31 +1439,45 @@ with st.sidebar:
         value=st.session_state.generate_images,
     )
 
-    narrator = NARRATORS[st.session_state.narrator]
+    active_narrator = NARRATORS[st.session_state.narrator]
     st.markdown(
         f"""
         <div class="character">
-            <div class="avatar">{narrator["avatar"]}</div>
-            <div class="character-name">{st.session_state.narrator}</div>
-            <div class="character-role">{narrator["description"]}</div>
+            <div class="avatar">{safe_html(active_narrator["avatar"])}</div>
+            <div class="character-name">{safe_html(st.session_state.narrator)}</div>
+            <div class="character-role">{safe_html(active_narrator["description"])}</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
     st.markdown("---")
-    if st.button("Clear workspace", use_container_width=True):
-        st.session_state.history = []
-        st.session_state.pending_story = None
-        st.session_state.current_story_id = None
-        st.rerun()
+
+    status = provider_status()
+    if status == "Unavailable":
+        st.markdown(
+            '<div class="status-warn">AI provider not configured</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            f'<div class="status-ok">AI provider: {safe_html(status)}</div>',
+            unsafe_allow_html=True,
+        )
 
     st.caption(
-        "AI service: " +
-        ("Connected" if GROQ_API_KEY else "Setup required")
+        "Groq key is read from .env and never rendered in the UI."
     )
 
-# ---------- Top bar ----------
+    if st.button("Clear workspace", use_container_width=True):
+        clear_workspace()
+        st.rerun()
+
+
+# ============================================================
+# TOP BAR / HERO
+# ============================================================
+
 st.markdown(
     """
 <div class="topbar">
@@ -986,228 +1485,79 @@ st.markdown(
         <div class="brand-mark">S</div>
         Story Studio
     </div>
-    <div class="nav-note">Create · Read · Listen</div>
+    <div class="small-note">Create · Read · Illustrate · Listen</div>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# ---------- Primary product hero ----------
 st.markdown(
     """
 <div class="hero">
-    <div class="hero-eyebrow">AI STORYTELLING PLATFORM</div>
+    <span class="eyebrow">ENTERPRISE AI STORYTELLING</span>
     <div class="hero-title">Stories that feel alive.</div>
     <div class="hero-copy">
-        Create original stories, build illustrated scenes and let a
-        professional AI narrator bring every chapter to life.
+        Turn a simple idea into a structured story, consistent characters,
+        illustrated scenes and professional narration.
     </div>
-    <div class="hero-meta">
-        <span class="pill">✦ AI story generation</span>
-        <span class="pill">◉ Illustrated scenes</span>
-        <span class="pill">▶ Character narration</span>
+    <div class="pills">
+        <span class="pill">Structured generation</span>
+        <span class="pill">Character consistency</span>
+        <span class="pill">Scene planning</span>
+        <span class="pill">AI narration</span>
+        <span class="pill">Open-source fallback</span>
     </div>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# ---------- High-level workspace metrics ----------
+
+# ============================================================
+# METRICS
+# ============================================================
+
 m1, m2, m3, m4 = st.columns(4)
-metrics = [
+metric_values = [
     (len(st.session_state.stories), "Stories"),
-    (len(st.session_state.image_cache), "Illustrations cached"),
+    (len(st.session_state.image_cache), "Images cached"),
     (len(st.session_state.audio_cache), "Narrations cached"),
-    ("Ready" if GROQ_API_KEY else "Setup", "Workspace"),
+    (provider_status(), "AI engine"),
 ]
-for col, (value, label) in zip((m1, m2, m3, m4), metrics):
+
+for col, (value, label) in zip((m1, m2, m3, m4), metric_values):
     with col:
         st.markdown(
-            f'<div class="metric"><div class="metric-number">{value}</div>'
-            f'<div class="metric-label">{label}</div></div>',
+            f"""
+            <div class="metric">
+                <div class="metric-number">{safe_html(value)}</div>
+                <div class="metric-label">{safe_html(label)}</div>
+            </div>
+            """,
             unsafe_allow_html=True,
         )
 
-# ---------- Main workspace tabs ----------
-library_tab, create_tab, reader_tab = st.tabs(
-    ["Story Library", "Create Story", "Reader"]
-)
 
 # ============================================================
-# LIBRARY
+# LIBRARY VIEW
 # ============================================================
-with library_tab:
-    st.markdown(
-        '<div class="section-head"><div><div class="section-title">Your stories</div>'
-        '<div class="section-note">Open a story to read, illustrate or narrate it.</div></div></div>',
-        unsafe_allow_html=True,
-    )
+
+if st.session_state.view == "Library":
+    st.markdown("### Your story library")
+    st.caption("Starter stories are immediately readable. Generated stories are added to this workspace.")
 
     stories = list(st.session_state.stories.values())
 
-    if not stories:
-        st.info("Your story library is empty. Create your first story.")
-    else:
-        cols = st.columns(3)
-
-        for idx, item in enumerate(stories):
-            with cols[idx % 3]:
-                st.markdown(
-                    f"""
-                    <div class="story-tile">
-                        <div class="story-icon">📖</div>
-                        <div class="story-title">{item["title"]}</div>
-                        <div class="story-description">
-                            {item.get("description", "")[:150]}
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
-                if st.button(
-                    "Open",
-                    key=f"library_open_{item['id']}",
-                    use_container_width=True,
-                ):
-                    load_story(item["id"])
-                    st.rerun()
-
-# ============================================================
-# CREATE
-# ============================================================
-with create_tab:
-    st.markdown(
-        '<div class="section-head"><div><div class="section-title">Create a story</div>'
-        '<div class="section-note">Describe the experience in your own words.</div></div></div>',
-        unsafe_allow_html=True,
-    )
-
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    prompt = st.text_area(
-        "Story idea",
-        placeholder=(
-            "Example: Tell a warm adventure about a little robot "
-            "who helps a lost child find their way home."
-        ),
-        height=130,
-        label_visibility="visible",
-    )
-
-    c1, c2 = st.columns([3, 1])
-    with c1:
-        st.caption(
-            f"{st.session_state.language} · "
-            f"{st.session_state.art_style} · "
-            f"{st.session_state.narrator}"
-        )
-    with c2:
-        generate_clicked = st.button(
-            "Create story",
-            type="primary",
-            use_container_width=True,
-        )
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    if generate_clicked:
-        prompt = clean_prompt(prompt)
-
-        if not prompt:
-            st.warning("Describe the story you want to create.")
-        elif not GROQ_API_KEY:
-            st.error("GROQ_API_KEY is not configured.")
-        else:
-            with st.spinner("Creating story, characters and scenes..."):
-                try:
-                    result = generate_story(
-                        prompt,
-                        st.session_state.language,
-                        st.session_state.narrator,
-                    )
-
-                    story_id = save_story(result["title"], result)
-                    st.session_state.stories[story_id]["prompt"] = prompt
-                    st.session_state.current_story_id = story_id
-                    st.session_state.pending_story = st.session_state.stories[story_id]
-
-                    st.session_state.history.extend([
-                        {"role": "user", "content": prompt},
-                        {"role": "assistant", "content": result["story"]},
-                    ])
-
-                    st.rerun()
-                except Exception as exc:
-                    st.error(f"Story creation failed: {safe_error(exc)}")
-
-    st.markdown(
-        """
-        <div class="section-head">
-            <div>
-                <div class="section-title">How it works</div>
-                <div class="section-note">A simple workflow designed for non-technical users.</div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    h1, h2, h3 = st.columns(3)
-    steps = [
-        ("01", "Describe", "Give the story idea, characters or lesson."),
-        ("02", "Create", "The story engine builds the narrative and scene plan."),
-        ("03", "Bring it alive", "Generate illustrations and let your narrator tell it."),
-    ]
-
-    for col, (num, title, body) in zip((h1, h2, h3), steps):
-        with col:
+    cols = st.columns(3)
+    for idx, item in enumerate(stories):
+        with cols[idx % 3]:
             st.markdown(
                 f"""
-                <div class="card">
-                    <div style="color:#2563eb;font-weight:800;">{num}</div>
-                    <div class="card-title" style="margin-top:8px;">{title}</div>
-                    <div class="card-subtitle">{body}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-# ============================================================
-# READER
-# ============================================================
-with reader_tab:
-    active = st.session_state.pending_story
-
-    if not active:
-        st.info("Open a story from the Story Library to start reading.")
-    else:
-        left, right = st.columns([3.2, 1])
-
-        with left:
-            st.markdown(
-                f"""
-                <div class="reader">
-                    <div class="reader-title">{active["title"]}</div>
-                    <div class="reader-copy">{active["story"]}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        with right:
-            active_narrator = NARRATORS.get(
-                active.get("narrator", st.session_state.narrator),
-                NARRATORS["Story Guide"],
-            )
-
-            st.markdown(
-                f"""
-                <div class="character">
-                    <div class="avatar">{active_narrator["avatar"]}</div>
-                    <div class="character-name">
-                        {active.get("narrator", "Story Guide")}
-                    </div>
-                    <div class="character-role">
-                        Your AI story narrator
+                <div class="story-tile">
+                    <div class="story-icon">📖</div>
+                    <div class="story-title">{safe_html(item.get("title", "Untitled"))}</div>
+                    <div class="story-description">
+                        {safe_html(item.get("description", ""))[:220]}
                     </div>
                 </div>
                 """,
@@ -1215,61 +1565,375 @@ with reader_tab:
             )
 
             if st.button(
-                "▶ Tell this story",
-                key=f"tell_{active.get('id', 'active')}",
+                "Open story",
+                key=f"open_{item['id']}",
                 use_container_width=True,
             ):
-                with st.spinner("Preparing narration..."):
-                    audio = generate_audio(
-                        active["story"],
-                        active.get("narrator", st.session_state.narrator),
-                    )
+                if open_story(item["id"]):
+                    st.rerun()
 
+    st.markdown("---")
+    st.markdown("### What happens after you create a story")
+
+    p1, p2, p3, p4 = st.columns(4)
+    steps = [
+        ("01", "Story Bible", "Characters, setting, goal and conflict are defined first."),
+        ("02", "Narrative", "Outline, draft and continuity editing happen as separate stages."),
+        ("03", "Visuals", "Scenes inherit the same character descriptions for consistency."),
+        ("04", "Narrator", "Read the story or generate narration for the complete story or a scene."),
+    ]
+
+    for col, (num, title, body) in zip((p1, p2, p3, p4), steps):
+        with col:
+            st.markdown(
+                f"""
+                <div class="card">
+                    <div style="color:#2563eb;font-weight:850;">{num}</div>
+                    <div style="font-weight:800;margin-top:7px;">{safe_html(title)}</div>
+                    <div class="small-note" style="margin-top:5px;">{safe_html(body)}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+
+# ============================================================
+# CREATE VIEW
+# ============================================================
+
+elif st.session_state.view == "Create":
+    st.markdown("### Create a story")
+    st.caption("The engine uses a multi-stage pipeline instead of asking one model call to do everything.")
+
+    st.markdown(
+        """
+        <div class="pipeline">
+            <div class="pipeline-step"><div class="pipeline-dot">1</div>Story brief</div>
+            <div style="height:8px;"></div>
+            <div class="pipeline-step"><div class="pipeline-dot">2</div>Story bible</div>
+            <div style="height:8px;"></div>
+            <div class="pipeline-step"><div class="pipeline-dot">3</div>Outline</div>
+            <div style="height:8px;"></div>
+            <div class="pipeline-step"><div class="pipeline-dot">4</div>Draft</div>
+            <div style="height:8px;"></div>
+            <div class="pipeline-step"><div class="pipeline-dot">5</div>Continuity edit</div>
+            <div style="height:8px;"></div>
+            <div class="pipeline-step"><div class="pipeline-dot">6</div>Scene director</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("")
+
+    prompt = st.text_area(
+        "Story idea",
+        height=150,
+        placeholder=(
+            "Example: Create a warm adventure about a little robot "
+            "who helps a lost child find the way home. Make it "
+            "funny, emotional and suitable for children."
+        ),
+    )
+
+    c1, c2, c3 = st.columns([1.1, 1.1, 1])
+    with c1:
+        st.caption(f"Language: {st.session_state.language}")
+    with c2:
+        st.caption(f"Style: {st.session_state.art_style}")
+    with c3:
+        st.caption(f"Narrator: {st.session_state.narrator}")
+
+    generate_clicked = st.button(
+        "Create professional story",
+        type="primary",
+        use_container_width=True,
+    )
+
+    if generate_clicked:
+        clean = clean_prompt(prompt)
+
+        if not clean:
+            st.warning("Describe the story you want to create.")
+        else:
+            progress = st.progress(0, text="Preparing story brief...")
+            try:
+                progress.progress(8, text="Building story bible...")
+                # Run pipeline with stage messaging. The individual functions
+                # remain separately testable and can later become background jobs.
+                bible = build_story_bible(clean, st.session_state.language)
+
+                progress.progress(24, text="Planning narrative structure...")
+                outline = build_outline(bible, st.session_state.language)
+
+                progress.progress(42, text="Writing the first draft...")
+                draft = draft_story(
+                    bible,
+                    outline,
+                    st.session_state.language,
+                    st.session_state.narrator,
+                )
+
+                progress.progress(62, text="Running continuity and quality edit...")
+                edited = edit_story(
+                    bible,
+                    draft,
+                    st.session_state.language,
+                )
+
+                progress.progress(80, text="Directing illustrated scenes...")
+                scenes = plan_scenes(
+                    bible,
+                    edited["story"],
+                    st.session_state.art_style,
+                )
+
+                result = {
+                    "title": str(bible.get("title", "Untitled Story")).strip()[:120],
+                    "description": str(bible.get("logline", "")).strip()[:300],
+                    "mood": str(bible.get("tone", "warm")).strip()[:60],
+                    "story": str(edited["story"]).strip()[:MAX_STORY_CHARS],
+                    "characters": bible.get("characters", []),
+                    "story_bible": bible,
+                    "outline": outline,
+                    "scenes": scenes["scenes"],
+                    "editor_notes": edited.get("editor_notes", [])[:8],
+                    "quality_score": int(edited.get("quality_score", 80)),
+                    "prompt": clean,
+                    "language": st.session_state.language,
+                    "style": st.session_state.art_style,
+                    "narrator": st.session_state.narrator,
+                    "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "pipeline": [
+                        "Brief", "Story Bible", "Outline",
+                        "Draft", "Continuity Edit", "Scene Plan"
+                    ],
+                }
+
+                progress.progress(100, text="Story ready.")
+                story_id = save_story(result)
+
+                st.session_state.current_story_id = story_id
+                st.session_state.pending_story = st.session_state.stories[story_id]
+                st.session_state.selected_scene = 0
+                st.session_state.history.extend([
+                    {"role": "user", "content": clean},
+                    {"role": "assistant", "content": result["story"]},
+                ])
+                st.session_state.history = st.session_state.history[-MAX_HISTORY:]
+                st.session_state.view = "Reader"
+                time.sleep(0.15)
+                st.rerun()
+
+            except Exception as exc:
+                st.error(f"Story creation failed: {safe_error(exc)}")
+                st.caption(
+                    "If using Groq, verify GROQ_API_KEY in .env and the configured GROQ_MODEL. "
+                    "The app also supports an optional local Ollama provider."
+                )
+
+
+# ============================================================
+# READER VIEW
+# ============================================================
+
+elif st.session_state.view == "Reader":
+    active = st.session_state.pending_story
+
+    if not active or not active.get("story"):
+        st.info("No story is open. Choose a story from the Library or create a new one.")
+        if st.button("Go to Library", type="primary"):
+            st.session_state.view = "Library"
+            st.rerun()
+    else:
+        title = active.get("title", "Untitled Story")
+        narrator_name = active.get("narrator", st.session_state.narrator)
+        narrator = NARRATORS.get(narrator_name, NARRATORS["Story Guide"])
+
+        top1, top2 = st.columns([4, 1])
+        with top1:
+            st.markdown(f"### {safe_html(title)}")
+            st.caption(
+                f"{safe_html(active.get('language', 'English'))} · "
+                f"{safe_html(active.get('style', 'Illustrated'))} · "
+                f"Quality pass: {active.get('quality_score', '—')}/100"
+            )
+        with top2:
+            if st.button("← Library", use_container_width=True):
+                st.session_state.view = "Library"
+                st.rerun()
+
+        left, right = st.columns([3.2, 1])
+
+        with left:
+            st.markdown(
+                f"""
+                <div class="reader">
+                    <div class="reader-title">{safe_html(title)}</div>
+                    <div class="reader-copy">{safe_html(active.get("story", ""))}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        with right:
+            st.markdown(
+                f"""
+                <div class="character">
+                    <div class="avatar">{safe_html(narrator["avatar"])}</div>
+                    <div class="character-name">{safe_html(narrator_name)}</div>
+                    <div class="character-role">AI Story Narrator</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            if st.button(
+                "▶ Tell full story",
+                type="primary",
+                use_container_width=True,
+                key=f"tell_full_{active['id']}",
+            ):
+                with st.spinner("Preparing narration..."):
+                    audio = generate_audio(active["story"], narrator_name)
                 if audio:
                     st.audio(audio, format="audio/mp3")
                 else:
                     st.error("Narration could not be generated.")
 
+            if st.button(
+                "Create / refresh story visuals",
+                use_container_width=True,
+                key=f"refresh_visuals_{active['id']}",
+            ):
+                # Cache is deterministic. This action simply moves the user
+                # back through the scene cards; failed images can be retried.
+                st.rerun()
+
+        st.markdown("---")
+        st.markdown("### Characters")
+
+        characters = active.get("characters", [])
+        if characters:
+            char_cols = st.columns(min(3, len(characters)))
+            for idx, character in enumerate(characters):
+                with char_cols[idx % len(char_cols)]:
+                    st.markdown(
+                        f"""
+                        <div class="card">
+                            <div style="font-weight:800;color:#123f82;">
+                                {safe_html(character.get("name", "Character"))}
+                            </div>
+                            <div class="small-note" style="margin-top:5px;">
+                                {safe_html(character.get("description", ""))}
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
         scenes = active.get("scenes", [])
 
-        if scenes and st.session_state.generate_images:
+        if scenes:
+            st.markdown("---")
+            st.markdown("### Illustrated scenes")
+
+            scene_titles = [
+                f"{i + 1}. {scene.get('title', 'Scene')}"
+                for i, scene in enumerate(scenes)
+            ]
+
+            selected = st.selectbox(
+                "Scene",
+                list(range(len(scenes))),
+                index=min(
+                    st.session_state.selected_scene,
+                    max(0, len(scenes) - 1),
+                ),
+                format_func=lambda i: scene_titles[i],
+            )
+            st.session_state.selected_scene = selected
+
+            scene = scenes[selected]
+
             st.markdown(
-                '<div class="section-head"><div><div class="section-title">Story scenes</div>'
-                '<div class="section-note">Illustrations generated from the story plan.</div></div></div>',
+                f"""
+                <div class="scene-card">
+                    <div class="scene-label">Scene {selected + 1}</div>
+                    <h3>{safe_html(scene.get("title", "Scene"))}</h3>
+                    <div class="small-note">
+                        {safe_html(scene.get("story_excerpt", ""))}
+                    </div>
+                </div>
+                """,
                 unsafe_allow_html=True,
             )
 
-            for scene_idx, scene in enumerate(scenes):
-                with st.container(border=True):
-                    st.markdown(
-                        f'<div class="scene-header">SCENE {scene_idx + 1} · '
-                        f'{scene.get("title", "Scene")}</div>',
-                        unsafe_allow_html=True,
+            if st.session_state.generate_images:
+                with st.spinner("Preparing illustration..."):
+                    image = fetch_image(
+                        scene.get("visual_prompt", ""),
+                        active.get("style", st.session_state.art_style),
                     )
-                    st.caption(scene.get("visual_prompt", ""))
 
-                    with st.spinner("Preparing illustration..."):
-                        image = fetch_image(
-                            scene.get("visual_prompt", ""),
-                            active.get("style", st.session_state.art_style),
-                        )
+                if image:
+                    st.image(image, use_container_width=True)
+                else:
+                    st.warning(
+                        "The illustration service did not return an image. "
+                        "The story itself is still available."
+                    )
 
-                    if image:
-                        st.image(image, use_container_width=True)
+            s1, s2 = st.columns([1, 1])
+            with s1:
+                if st.button(
+                    "▶ Narrate this scene",
+                    use_container_width=True,
+                    key=f"scene_audio_{active['id']}_{selected}",
+                ):
+                    text = scene.get("story_excerpt", "").strip()
+                    if not text:
+                        text = active["story"]
+
+                    with st.spinner("Preparing scene narration..."):
+                        audio = generate_audio(text, narrator_name)
+
+                    if audio:
+                        st.audio(audio, format="audio/mp3")
                     else:
-                        st.warning(
-                            "This illustration is temporarily unavailable. "
-                            "The story remains available."
-                        )
+                        st.error("Scene narration could not be generated.")
+
+            with s2:
+                if st.button(
+                    "Next scene →",
+                    use_container_width=True,
+                    disabled=selected >= len(scenes) - 1,
+                    key=f"next_{active['id']}_{selected}",
+                ):
+                    st.session_state.selected_scene = min(
+                        selected + 1,
+                        len(scenes) - 1,
+                    )
+                    st.rerun()
+
+        with st.expander("Story architecture"):
+            st.write(
+                {
+                    "provider": provider_status(),
+                    "model": GROQ_MODEL if provider_status() == "Groq" else OLLAMA_MODEL,
+                    "pipeline": active.get("pipeline", []),
+                    "created_at": active.get("created_at", ""),
+                    "editor_notes": active.get("editor_notes", []),
+                }
+            )
+
 
 # ============================================================
-# Active story summary on every non-reader view
+# FOOTER
 # ============================================================
-if st.session_state.pending_story and "Reader" not in st.session_state:
-    pass
 
 st.markdown("---")
 st.caption(
-    "Story Studio · Professional AI storytelling workspace · "
-    "Structured generation · Visual scenes · Character narration"
+    "Story Studio Enterprise · Structured AI generation · "
+    "Character-aware scene planning · Cached media · Provider abstraction"
 )
