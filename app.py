@@ -46,7 +46,6 @@ import urllib.parse
 from typing import Any, Dict, List, Optional
 
 import requests
-import edge_tts
 import streamlit as st
 
 try:
@@ -73,8 +72,22 @@ APP_VERSION = "8.0.0"
 # ============================================================
 # Example: GROQ_API_KEY = "gsk_xxxxxxxxxxxxxxxxx"
 # Keep this private. Do NOT commit the real key to GitHub or publish it.
-GROQ_API_KEY = "PASTE_YOUR_GROQ_API_KEY_HERE".strip()
+GROQ_API_KEY = "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".strip()
 GROQ_MODEL = "openai/gpt-oss-20b"
+
+# Temporary Supabase + ElevenLabs configuration requested for this build.
+# IMPORTANT: rotate these credentials before publishing or committing this file.
+SUPABASE_URL = "https://almmvgiimkftvgdsiiko.supabase.co".rstrip("/")
+SUPABASE_KEY = "sb_secret_GVrHEtq81zPn3igjH-Yk_Q_bIF2MV4c".strip()
+ELEVENLABS_API_KEY = "sk_ebcaba1e9e4156175eabeb87eafc5276fc546bc999594046".strip()
+SUPABASE_TABLE = "stories"
+
+ELEVENLABS_VOICES = {
+    "Story Guide": "pNInz6obpgDQGcFmaJgB",
+    "Emma": "EXAVITQu4vr4xnSDxMaL",
+    "Sofia": "21m00Tcm4TlvDq8ikWAM",
+    "Indian English": "AZnzlk1XvdvUeBnXmlld",
+}
 
 MAX_PROMPT_LENGTH = 3000
 MAX_STORY_CHARS = 22000
@@ -380,6 +393,13 @@ for key, value in DEFAULTS.items():
 for starter in STARTER_STORIES:
     st.session_state.stories.setdefault(starter["id"], starter)
 
+# Load previously persisted stories once per browser session.
+if "cloud_loaded" not in st.session_state:
+    st.session_state.cloud_loaded = True
+    for cloud_story in load_stories_from_supabase():
+        if cloud_story.get("id") and cloud_story.get("story"):
+            st.session_state.stories[cloud_story["id"]] = cloud_story
+
 
 # ============================================================
 # ENTERPRISE BLUE + GREEN UI / UX
@@ -514,6 +534,9 @@ def stable_hash(*parts: str) -> str:
 
 def safe_error(exc: Exception) -> str:
     text = str(exc).strip()
+    for secret in (GROQ_API_KEY, SUPABASE_KEY, ELEVENLABS_API_KEY):
+        if secret and len(secret) > 8:
+            text = text.replace(secret, "[REDACTED]")
     text = re.sub(r"gsk_[A-Za-z0-9_-]+", "[REDACTED]", text)
     return text[:600] or "Unexpected error."
 
@@ -545,10 +568,85 @@ def extract_json(raw: str) -> Dict[str, Any]:
 
 
 def provider_status() -> str:
-    """Return the single configured AI engine used by this product."""
-    if GROQ_API_KEY and GROQ_API_KEY != "PASTE_YOUR_GROQ_API_KEY_HERE" and Groq is not None:
+    """Return the configured AI engine used by this product."""
+    if GROQ_API_KEY and Groq is not None:
         return "Groq"
     return "Not configured"
+
+
+def supabase_headers() -> Dict[str, str]:
+    return {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+    }
+
+
+def supabase_enabled() -> bool:
+    return bool(SUPABASE_URL and SUPABASE_KEY)
+
+
+def save_story_to_supabase(record: Dict[str, Any]) -> bool:
+    """Best-effort cloud persistence. UI generation never fails if the DB is unavailable."""
+    if not supabase_enabled():
+        return False
+    try:
+        payload = {
+            "id": record.get("id"),
+            "title": record.get("title", "Untitled Story"),
+            "description": record.get("description", ""),
+            "prompt": record.get("prompt", ""),
+            "story": record.get("story", ""),
+            "language": record.get("language", "English"),
+            "style": record.get("style", "Illustrated"),
+            "narrator": record.get("narrator", "Story Guide"),
+            "quality_score": int(record.get("quality_score", 80) or 80),
+            "mood": record.get("mood", "warm"),
+            "characters": record.get("characters", []),
+            "story_bible": record.get("story_bible", {}),
+            "outline": record.get("outline", {}),
+            "scenes": record.get("scenes", []),
+            "editor_notes": record.get("editor_notes", []),
+            "pipeline": record.get("pipeline", []),
+            "created_at": record.get("created_at"),
+        }
+        r = requests.post(
+            f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}",
+            headers=supabase_headers(),
+            json=payload,
+            timeout=12,
+        )
+        if r.status_code in (200, 201, 204):
+            return True
+        # Retry as an update when the deterministic ID already exists.
+        if r.status_code in (409, 400):
+            r2 = requests.patch(
+                f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}?id=eq.{urllib.parse.quote(str(record.get('id')))}",
+                headers=supabase_headers(),
+                json=payload,
+                timeout=12,
+            )
+            return r2.status_code in (200, 204)
+    except requests.RequestException:
+        pass
+    return False
+
+
+def load_stories_from_supabase() -> List[Dict[str, Any]]:
+    if not supabase_enabled():
+        return []
+    try:
+        r = requests.get(
+            f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}?select=*&order=created_at.desc",
+            headers=supabase_headers(),
+            timeout=12,
+        )
+        if r.ok and isinstance(r.json(), list):
+            return r.json()
+    except (requests.RequestException, ValueError):
+        pass
+    return []
 
 
 def get_groq_client() -> Optional[Any]:
@@ -1108,51 +1206,48 @@ def fetch_image(scene_prompt: str, style_name: str) -> Optional[bytes]:
 # NARRATION SERVICE
 # ============================================================
 
-async def create_audio_file(text: str, voice: str, path: str):
-    await edge_tts.Communicate(text, voice).save(path)
-
-
 def generate_audio(text: str, narrator: str) -> Optional[bytes]:
-    voice = NARRATORS[narrator]["voice"]
-    key = stable_hash(text, voice)
+    """Generate narration through ElevenLabs with session caching."""
+    voice_id = ELEVENLABS_VOICES.get(narrator, ELEVENLABS_VOICES["Story Guide"])
+    key = stable_hash(text, voice_id, "elevenlabs")
 
     if key in st.session_state.audio_cache:
         return st.session_state.audio_cache[key]
 
-    path = None
+    if not ELEVENLABS_API_KEY:
+        st.session_state.last_error = "ElevenLabs API key is not configured."
+        return None
 
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
-            path = tmp.name
+        response = requests.post(
+            f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+            headers={
+                "xi-api-key": ELEVENLABS_API_KEY,
+                "Accept": "audio/mpeg",
+                "Content-Type": "application/json",
+            },
+            json={
+                "text": text[:9000],
+                "model_id": "eleven_multilingual_v2",
+                "voice_settings": {
+                    "stability": 0.48,
+                    "similarity_boost": 0.78,
+                    "style": 0.18,
+                    "use_speaker_boost": True,
+                },
+            },
+            timeout=90,
+        )
+        if not response.ok or not response.content:
+            detail = response.text[:300] if response.text else "Unknown ElevenLabs error."
+            raise RuntimeError(f"ElevenLabs narration failed ({response.status_code}): {detail}")
 
-        try:
-            asyncio.run(create_audio_file(text, voice, path))
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            try:
-                loop.run_until_complete(create_audio_file(text, voice, path))
-            finally:
-                loop.close()
-
-        with open(path, "rb") as audio:
-            data = audio.read()
-
-        if not data:
-            raise RuntimeError("Narration provider returned an empty audio file.")
-
+        data = response.content
         st.session_state.audio_cache[key] = data
         return data
-
     except Exception as exc:
         st.session_state.last_error = safe_error(exc)
         return None
-
-    finally:
-        if path and os.path.exists(path):
-            try:
-                os.remove(path)
-            except OSError:
-                pass
 
 
 # ============================================================
@@ -1174,6 +1269,7 @@ def save_story(story_data: Dict[str, Any], story_id: Optional[str] = None) -> st
     )[:300]
 
     st.session_state.stories[sid] = record
+    record["cloud_saved"] = save_story_to_supabase(record)
     return sid
 
 
